@@ -1,0 +1,29 @@
+# Above
+
+A small iOS sky diary. Take a moment to look up, capture the sky through a circular camera preview, and collect a month of photographs.
+
+## Run
+
+Open `Above.xcodeproj` in Xcode 16 or newer and run on an iPhone with iOS 17 or newer. Select your development team in Signing & Capabilities for a physical device. Simulator supports browsing and notes; camera capture requires a real iPhone.
+
+## Current experience
+
+- Cream background, handwritten Above wordmark, bold lowercase month headings.
+- Monthly calendar fits the screen; header, grid and bottom action remain consistently positioned across months.
+- Tap an empty past or current date, or Look up, to open the camera directly. No photo-library import.
+- Circular camera preview with a centered square crop, displayed as a circle throughout the diary.
+- Full-screen photo detail with date and a scrollable note.
+- Tap the note to edit inline; empty notes show a placeholder. The keyboard's Done key saves and dismisses editing. Photos keep their size while editing.
+- Month navigation; no Archive or sharing controls.
+- Local storage for images and notes. No accounts or backend.
+- First-launch introduction; subsequent launches open the calendar.
+
+The prototype seeds six sample entries once in the current month, using three AI-generated sky images. Existing photos are preserved. Samples can be deleted and are never restored automatically.
+
+## Validation
+
+Built with Xcode 16.4 for iPhoneOS, and run in the iPhone 16 Pro simulator on iOS 18.6. Physical camera capture still needs device validation.
+
+## Copy provenance
+
+The introduction's approximate 90% indoor-time figure comes from U.S. EPA guidance about Americans, rather than a worldwide measurement or a measurement of sky-viewing frequency: https://www.epa.gov/report-environment/indoor-air-quality
