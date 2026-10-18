@@ -249,15 +249,16 @@ struct CalendarView: View {
                 .padding(.horizontal, -16)
                 HStack(spacing: 12) {
                     if hasSky {
-                        Text(month.formatted(.dateTime.month(.wide).year()))
-                            .font(.system(size: 18, weight: .regular))
+                        Text(month.formatted(.dateTime.month(.wide).year()).uppercased())
+                            .font(.system(size: 24, weight: .black)).tracking(-0.8)
+                            .lineLimit(1).minimumScaleFactor(0.75)
                             .accessibilityAddTraits(.isHeader)
                         Spacer()
                         Button { move(-1) } label: {
-                            Image(systemName: "chevron.left").frame(width: 44, height: 44)
+                            Image(systemName: "chevron.left").font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44)
                         }.accessibilityLabel("Previous month")
                         Button { move(1) } label: {
-                            Image(systemName: "chevron.right").frame(width: 44, height: 44, alignment: .trailing)
+                            Image(systemName: "chevron.right").font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44, alignment: .trailing)
                         }.accessibilityLabel("Next month")
                     } else {
                         Button { move(-1) } label: {
@@ -484,7 +485,7 @@ struct CalendarView: View {
     func skyGrid(photoSize: CGFloat) -> some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 7), spacing: 4) {
             ForEach(Array(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].enumerated()), id: \.offset) { _, label in
-                Text(label).font(.system(size: 10, weight: hasSky ? .medium : .bold))
+                Text(label).font(.system(size: 10, weight: .bold))
                     .frame(maxWidth: .infinity, alignment: .center).padding(.bottom, 8)
             }
             ForEach(-offset..<0, id: \.self) { _ in Color.clear.frame(height: photoSize) }
