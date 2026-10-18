@@ -180,12 +180,13 @@ struct CalendarView: View {
     var body: some View {
         GeometryReader { geometry in
             let photoSize = max(20, min((geometry.size.width - 52) / 7,
-                                       (geometry.size.height - 280) / 6 - 19))
+                                       (geometry.size.height - 300) / 6 - 5))
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Spacer()
-                    Text("above").font(.custom("BradleyHandITCTT-Bold", size: 26)).tracking(-1)
-                }.frame(height: 34).padding(.bottom, 14)
+                    Text("above").font(.custom("BradleyHandITCTT-Bold", size: 20)).tracking(-1)
+                }.frame(height: 28)
+                Spacer(minLength: 24)
                 HStack {
                     Button { move(-1) } label: {
                         Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
@@ -198,8 +199,7 @@ struct CalendarView: View {
                     }.accessibilityLabel("Next month")
                 }.padding(.bottom, 12)
                 skyGrid(photoSize: photoSize)
-                Spacer(minLength: 14)
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 16) {
                     Text(month.formatted(.dateTime.month(.wide)).lowercased())
                         .font(.system(size: 78, weight: .bold)).kerning(-4)
                         .minimumScaleFactor(0.45).lineLimit(1)
@@ -207,12 +207,19 @@ struct CalendarView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .frame(height: 94, alignment: .bottomLeading)
                         .accessibilityAddTraits(.isHeader)
-                    Text(month.formatted(.dateTime.year()))
-                        .font(.system(size: 16, weight: .bold))
-                    Text("a little sky to keep every day.")
-                        .font(.system(size: 12)).foregroundStyle(.secondary)
-                        .padding(.top, 10)
+                    HStack(alignment: .top, spacing: 16) {
+                        Text(month.formatted(.dateTime.year()))
+                        Spacer(minLength: 4)
+                        Text("a little sky to keep\nevery day.")
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 4)
+                        EditorialStarburst().fill(.black)
+                            .frame(width: 28, height: 28)
+                            .accessibilityHidden(true)
+                    }
+                    .font(.system(size: 16, weight: .bold))
                 }
+                .padding(.top, 22)
                 .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 22)
@@ -241,19 +248,15 @@ struct CalendarView: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 5) {
             ForEach(Array(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].enumerated()), id: \.offset) { _, label in
                 Text(label).font(.system(size: 10, weight: .bold))
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 8)
+                    .frame(maxWidth: .infinity, alignment: .center).padding(.bottom, 8)
             }
-            ForEach(-offset..<0, id: \.self) { _ in Color.clear.frame(height: photoSize + 15) }
+            ForEach(-offset..<0, id: \.self) { _ in Color.clear.frame(height: photoSize) }
             ForEach(days, id: \.self) { day in
                 Button {
                     if let entry = store.entry(day) { selected = entry }
                     else { openCamera(on: day) }
                 } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(calendar.component(.day, from: day))")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(day > Date() ? .secondary : .primary)
-                            .frame(height: 13, alignment: .leading)
+                    VStack(spacing: 0) {
                         ZStack {
                             if let entry = store.entry(day), let image = store.image(entry) {
                                 Image(uiImage: image).resizable().scaledToFill()
@@ -266,7 +269,7 @@ struct CalendarView: View {
                             }
                         }
                         .frame(width: photoSize, height: photoSize).clipShape(Circle())
-                    }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                    }.frame(maxWidth: .infinity, alignment: .center).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled(calendar.startOfDay(for: day) > calendar.startOfDay(for: Date()))
@@ -275,6 +278,22 @@ struct CalendarView: View {
         }
     }
     func move(_ amount: Int) { month = calendar.date(byAdding: .month, value: amount, to: monthStart)! }
+}
+
+struct EditorialStarburst: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let radius = min(rect.width, rect.height) / 2
+        for index in 0..<24 {
+            let angle = Double(index) * .pi / 12 - .pi / 2
+            let r = radius * (index.isMultiple(of: 2) ? 1 : 0.48)
+            let point = CGPoint(x: center.x + cos(angle) * r, y: center.y + sin(angle) * r)
+            if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
+        }
+        path.closeSubpath()
+        return path
+    }
 }
 
 struct EntryView: View {
