@@ -4,15 +4,17 @@ Above is a simple invitation to look up once a day, expressed as an independent 
 
 ## Visual direction
 
-Warm cream paper, black interface, generous whitespace, original bold system sans-serif for month and date headings. A smaller Bradley Hand wordmark provides the handwritten accent. Sky photographs supply the color. No large illustrations, colored action buttons, Archive, or sharing controls.
+Warm cream paper, black interface, generous whitespace, original bold system sans-serif for month and date headings. A smaller Bradley Hand wordmark, right-aligned on the home screen, provides the handwritten accent. Sky photographs supply the color. No large illustrations, colored action buttons, Archive, or sharing controls.
 
 ## Calendar
 
-Circular sky thumbnails on daily dates. The current empty day has a thin outlined plus. Large lowercase month name; consistent reserved heading and subtitle heights keep the calendar from shifting between months. Look up remains fixed at the bottom with a consistent 22-point font. The home screen fits without scrolling.
+Neutral off-white calendar home with a small right-aligned sans-serif wordmark. The full-width area above the calendar defaults to neutral off-white and displays today’s captured sky poster once available. It always represents today, even while browsing other months; it refreshes at minute boundaries. A white wordmark with a subtle shadow sits over photographs. Small bold weekday labels are centered above large circular sky thumbnails with tight horizontal spacing. Date numerals are hidden; full dates remain available to accessibility. Empty dates have pale gray circles; today has an outlined plus. The home fits without scrolling, including six-row months. When today’s sky exists, its header gains about 6% of the screen height, weekday labels become lighter, and a regular 18-point month-and-year header sits above the calendar, with navigation chevrons on the right and no date below. Without today’s sky, the calendar sits 32 points plus 5% of screen height higher on a neutral off-white background, and the 78-point month title and bold 16-point year and caption remain. In Simulator, tap above to compare sample-sky, no-sky, and actual-data modes; this does not modify saved entries.
+
+Below the calendar, the month is a large bold lowercase headline. The footer places the bold year on the left, “a little sky to keep / every day.” in two lines at the same 16-point size in the middle, with no decorative icon. Month navigation remains above the calendar. No subtitle, Look up button, Archive or share controls. Tap an empty date to capture.
 
 ## Camera
 
-The plus and Look up open the camera directly. Circular live viewfinder, monochrome shutter, arrow-only Back control. The only editorial caption is “Take a moment to look up.” No photo-library import. Capture uses a centered square crop displayed through a circular mask.
+The calendar date opens the camera directly. The circular live viewfinder is the recording button. Tapping it records ten seconds, with a monochrome progress ring around the circle and no separate shutter. The recording becomes a silent looping GIF. Arrow-only Back control cancels incomplete capture. Before recording, the circle contains “tap to keep a little sky”. The caption disappears during recording, leaving the progress ring. There is no text below the circle. No photo-library import. Capture uses a centered square crop displayed through a circular mask. The diary loops the GIF and calendar thumbnails remain still.
 
 ## Diary detail
 
@@ -28,8 +30,24 @@ Shown once, with large editorial copy:
 
 “There’s still a sky above you.”
 
-Both sentences use the same font size. No “Did you know?” label or source link in the UI. A small supporting line reads “One photo. A little more looking up.” and the action is “Let’s look up ↗”. The statistic’s original U.S. scope is recorded in README.md.
+Both sentences use the same font size. No “Did you know?” label or source link in the UI. A small supporting line reads “Ten seconds. A little more looking up.” and the action is “Let’s look up ↗”. The statistic’s original U.S. scope is recorded in README.md.
 
 ## Remaining validation
 
 Camera capture and exact preview-to-capture crop matching require a physical iPhone. The prototype intentionally has no account, sync service, or distribution signing configuration.
+
+The decorative black starburst appears only beside the caption in the no-sky layout. The captured-sky calendar is bottom aligned above the safe area, and the sky photo fills all remaining space above its header.
+
+All screen backgrounds use the same neutral off-white (98% white), without a yellow tint.
+
+Month / Year controls switch between the existing monthly layout and a scrollable editorial year view. Bold month abbreviations flow inline with day numbers; saved entries replace day numbers with circular sky posters. Year arrows navigate years. Tapping a saved day opens its diary; past or current empty days open capture. Future dates are disabled.
+
+Two additional monthly styles are available from the top selector: Blocks uses an oversized month number with touching black capsule week rows with plain light date numerals for empty days and tightly spaced sky circles without numerals for recorded days; Poster uses an oversized month abbreviation, a ruled month/year header, and bold date numerals. Saved days show sky photos in both styles; navigation and diary/capture actions use the same stored entries. All styles retain the neutral off-white background.
+
+Poster centers the oversized month abbreviation, shows recorded skies without date numerals, and keeps only navigation arrows in the bottom row.
+
+The visible selector is Month v1 / Month v2 / Year / Poster. Month v1 always uses the layout without a sky header; Month v2 always uses the sky-header layout. Blocks is no longer offered.
+
+Month v2 uses a bold uppercase 24-point month-and-year heading, bold weekday labels, and semibold navigation chevrons to match the other editorial layouts.
+
+The camera circle fills more of the screen width. Tap during recording to pause; tap again to resume. Only captured time counts toward ten seconds. Paused segments are joined for GIF generation, excluding the pause.
