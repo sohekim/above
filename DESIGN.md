@@ -8,7 +8,7 @@ Warm cream paper, black interface, generous whitespace, original bold system san
 
 ## Calendar
 
-White home screen with a small right-aligned handwritten wordmark and generous whitespace above the calendar. Small bold weekday labels are centered above large circular sky thumbnails with tight horizontal spacing. Date numerals are hidden; full dates remain available to accessibility. Empty dates have pale gray circles; today has an outlined plus. The home fits without scrolling, including six-row months.
+White calendar home with a small right-aligned handwritten wordmark. The full-width area above the calendar defaults to pale sky blue and displays today’s captured sky poster once available. It always represents today, even while browsing other months; it refreshes at minute boundaries. A white wordmark with a subtle shadow sits over photographs. Small bold weekday labels are centered above large circular sky thumbnails with tight horizontal spacing. Date numerals are hidden; full dates remain available to accessibility. Empty dates have pale gray circles; today has an outlined plus. The home fits without scrolling, including six-row months.
 
 Below the calendar, the month is a large bold lowercase headline. The footer places the bold year on the left, “a little sky to keep / every day.” in two lines at the same 16-point size in the middle, and a decorative black starburst at the right. Month navigation remains above the calendar. No subtitle, Look up button, Archive or share controls. Tap an empty date to capture.
 

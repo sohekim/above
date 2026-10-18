@@ -182,11 +182,32 @@ struct CalendarView: View {
             let photoSize = max(20, min((geometry.size.width - 50) / 7,
                                        (geometry.size.height - 290) / 6 - 4))
             VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Spacer()
-                    Text("above").font(.custom("BradleyHandITCTT-Bold", size: 20)).tracking(-1)
-                }.frame(height: 28)
-                Spacer(minLength: 24)
+                GeometryReader { header in
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                        let todayImage = store.entry(context.date).flatMap { store.image($0) }
+                        ZStack(alignment: .topTrailing) {
+                        ZStack {
+                            Color(red: 0.82, green: 0.90, blue: 0.98)
+                            if let todayImage {
+                                Image(uiImage: todayImage).resizable().scaledToFill()
+                            }
+                        }
+                        .frame(width: header.size.width,
+                               height: max(0, header.size.height + geometry.safeAreaInsets.top))
+                        .clipped()
+                        .offset(y: -geometry.safeAreaInsets.top)
+                        .accessibilityLabel(todayImage == nil ? "Today’s sky, waiting to be captured" : "Today’s captured sky")
+                        Text("above")
+                            .font(.custom("BradleyHandITCTT-Bold", size: 20)).tracking(-1)
+                            .foregroundStyle(todayImage == nil ? Color.black : Color.white)
+                            .shadow(color: todayImage == nil ? .clear : .black.opacity(0.5), radius: 3, y: 1)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .padding(.horizontal, 16).padding(.top, 12)
+                        }.frame(width: header.size.width, height: header.size.height, alignment: .top)
+                    }
+                }
+                .frame(minHeight: 52)
+                .padding(.horizontal, -16)
                 HStack {
                     Button { move(-1) } label: {
                         Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
@@ -197,7 +218,7 @@ struct CalendarView: View {
                     Button { move(1) } label: {
                         Image(systemName: "arrow.right").frame(width: 44, height: 44, alignment: .trailing)
                     }.accessibilityLabel("Next month")
-                }.padding(.bottom, 12)
+                }.padding(.top, 12).padding(.bottom, 12)
                 skyGrid(photoSize: photoSize)
                 VStack(alignment: .leading, spacing: 16) {
                     Text(month.formatted(.dateTime.month(.wide)).lowercased())
@@ -222,7 +243,7 @@ struct CalendarView: View {
                 .padding(.top, 22)
                 .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 22)
+            .padding(.horizontal, 16).padding(.bottom, 22)
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             .background(Color.white)
         }
