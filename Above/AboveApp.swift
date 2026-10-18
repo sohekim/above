@@ -424,7 +424,9 @@ struct CalendarView: View {
         .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(store.entry(day) == nil ? "no sky" : "sky saved")")
     }
     var yearlyCalendar: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        GeometryReader { geometry in
+        let circleSize = min(22, max(14, (geometry.size.height - 140) / 27))
+        VStack(alignment: .leading, spacing: 10) {
             HStack { Spacer(); wordmark }.padding(.top, 12)
             HStack {
                 Text(month.formatted(.dateTime.year())).font(.system(size: 54, weight: .bold)).tracking(-2)
@@ -433,9 +435,8 @@ struct CalendarView: View {
                     .accessibilityLabel("Previous year")
                 Button { moveYear(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
                     .accessibilityLabel("Next year")
-            }.padding(.top, 18)
-            ScrollView {
-                YearFlowLayout(spacing: 3) {
+            }.padding(.top, 8)
+                YearFlowLayout(spacing: 1) {
                     ForEach(1...12, id: \.self) { number in
                         let start = calendar.date(from: DateComponents(year: calendar.component(.year, from: month), month: number, day: 1))!
                         Text(start.formatted(.dateTime.month(.abbreviated)).uppercased())
@@ -456,9 +457,9 @@ struct CalendarView: View {
                                             .foregroundStyle(.black.opacity(day > today ? 0.25 : 0.7))
                                     }
                                 }
-                                .frame(width: 22, height: 22).clipShape(Circle())
+                                .frame(width: circleSize, height: circleSize).clipShape(Circle())
                                 .overlay { if calendar.isDateInToday(day) { Circle().stroke(.black, lineWidth: 1) } }
-                                .frame(width: 22, height: 25)
+                                .frame(width: circleSize, height: circleSize)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
@@ -466,10 +467,13 @@ struct CalendarView: View {
                             .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(store.entry(day) == nil ? "no sky" : "sky saved")")
                         }
                     }
-                }.padding(.bottom, 24)
-            }.scrollIndicators(.hidden)
+                }
+                Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16).background(paper)
+        .padding(.horizontal, 16).padding(.bottom, 12)
+        .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
+        .background(paper)
+        }
     }
     func moveYear(_ amount: Int) {
         month = calendar.date(byAdding: .year, value: amount, to: month)!
