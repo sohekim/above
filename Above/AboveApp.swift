@@ -210,7 +210,7 @@ struct CalendarView: View {
                 .padding(.horizontal, 28).padding(.top, 18).padding(.bottom, 112)
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
                 .overlay(alignment: .bottomLeading) {
-                    Text("One sky. Every day.")
+                    Text("a little sky to keep every day.")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                         .frame(height: 14, alignment: .leading)
                         .padding(.horizontal, 28).padding(.bottom, 14)

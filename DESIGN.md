@@ -8,7 +8,7 @@ Warm cream paper, black interface, generous whitespace, original bold system san
 
 ## Calendar
 
-Circular sky thumbnails on daily dates. The current empty day has a thin outlined plus. Large lowercase month name; consistent reserved heading heights keep the calendar from shifting between months. No subtitle or Look up button on the home screen; users tap a date to open capture. The home screen fits without scrolling.
+Circular sky thumbnails on daily dates. The current empty day has a thin outlined plus. Large lowercase month name; consistent reserved heading heights keep the calendar from shifting between months. No subtitle or Look up button on the home screen; users tap a date to open capture. The home screen fits without scrolling. Its footer reads “a little sky to keep every day.”
 
 ## Camera
 
