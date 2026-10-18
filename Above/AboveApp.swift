@@ -211,13 +211,14 @@ struct CalendarView: View {
             let gridHeight = 24 + CGFloat(rows) * photoSize + CGFloat(rows - 1) * 4
             let fullHeight = geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom
             let capturedHeaderHeight = max(52, geometry.size.height - gridHeight - 250 + fullHeight * 0.06)
+            let emptyHeaderHeight = max(52, geometry.size.height - gridHeight - 250 - 32)
             VStack(alignment: .leading, spacing: 0) {
                 GeometryReader { header in
                     Group {
                         let todayImage = headerImage
                         ZStack(alignment: .topTrailing) {
                         ZStack {
-                            Color(red: 0.82, green: 0.90, blue: 0.98)
+                            Color.white
                             if let todayImage {
                                 Image(uiImage: todayImage).resizable().scaledToFill()
                             }
@@ -235,7 +236,7 @@ struct CalendarView: View {
                         }.frame(width: header.size.width, height: header.size.height, alignment: .top)
                     }
                 }
-                .frame(height: hasSky ? capturedHeaderHeight : nil)
+                .frame(height: hasSky ? capturedHeaderHeight : emptyHeaderHeight)
                 .frame(minHeight: 52)
                 .padding(.horizontal, -16)
                 HStack {
@@ -278,6 +279,7 @@ struct CalendarView: View {
                 }
                 .padding(.top, 14)
                 .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
                 }
             }
             .padding(.horizontal, 16).padding(.bottom, 22)
