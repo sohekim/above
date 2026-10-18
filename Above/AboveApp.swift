@@ -179,14 +179,16 @@ struct CalendarView: View {
     var offset: Int { (calendar.component(.weekday, from: monthStart) + 5) % 7 }
     var body: some View {
         GeometryReader { geometry in
+            let screenHeight = geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom
+            let calendarTop = max(108, screenHeight * 0.25 - geometry.safeAreaInsets.top)
             let photoSize = max(20, min((geometry.size.width - 52) / 7,
-                                       (geometry.size.height - 300) / 6 - 5))
+                                       (geometry.size.height - calendarTop - 230) / 6 - 5))
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Spacer()
                     Text("above").font(.custom("BradleyHandITCTT-Bold", size: 20)).tracking(-1)
                 }.frame(height: 28)
-                Spacer(minLength: 24)
+                Color.clear.frame(height: max(12, calendarTop - 96))
                 HStack {
                     Button { move(-1) } label: {
                         Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
@@ -221,6 +223,7 @@ struct CalendarView: View {
                 }
                 .padding(.top, 22)
                 .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 22)
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
