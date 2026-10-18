@@ -179,16 +179,14 @@ struct CalendarView: View {
     var offset: Int { (calendar.component(.weekday, from: monthStart) + 5) % 7 }
     var body: some View {
         GeometryReader { geometry in
-            let screenHeight = geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom
-            let calendarTop = max(108, screenHeight * 0.35 - geometry.safeAreaInsets.top)
-            let photoSize = max(20, min((geometry.size.width - 52) / 7,
-                                       (geometry.size.height - calendarTop - 230) / 6 - 5))
+            let photoSize = max(20, min((geometry.size.width - 32) / 7,
+                                       (geometry.size.height - 290) / 6 - 5))
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Spacer()
                     Text("above").font(.custom("BradleyHandITCTT-Bold", size: 20)).tracking(-1)
                 }.frame(height: 28)
-                Color.clear.frame(height: max(12, calendarTop - 96))
+                Spacer(minLength: 24)
                 HStack {
                     Button { move(-1) } label: {
                         Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
@@ -223,9 +221,8 @@ struct CalendarView: View {
                 }
                 .padding(.top, 22)
                 .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 22)
+            .padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 22)
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             .background(Color.white)
         }
@@ -248,7 +245,7 @@ struct CalendarView: View {
         camera = true
     }
     func skyGrid(photoSize: CGFloat) -> some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 5) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 4) {
             ForEach(Array(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].enumerated()), id: \.offset) { _, label in
                 Text(label).font(.system(size: 10, weight: .bold))
                     .frame(maxWidth: .infinity, alignment: .center).padding(.bottom, 8)
