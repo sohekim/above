@@ -207,6 +207,10 @@ struct CalendarView: View {
         GeometryReader { geometry in
             let photoSize = max(20, min((geometry.size.width - 50) / 7,
                                        (geometry.size.height - 290) / 6 - 4))
+            let rows = (offset + days.count + 6) / 7
+            let gridHeight = 24 + CGFloat(rows) * photoSize + CGFloat(rows - 1) * 4
+            let fullHeight = geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom
+            let capturedHeaderHeight = max(52, geometry.size.height - gridHeight - 250 + fullHeight * 0.06)
             VStack(alignment: .leading, spacing: 0) {
                 GeometryReader { header in
                     Group {
@@ -231,6 +235,7 @@ struct CalendarView: View {
                         }.frame(width: header.size.width, height: header.size.height, alignment: .top)
                     }
                 }
+                .frame(height: hasSky ? capturedHeaderHeight : nil)
                 .frame(minHeight: 52)
                 .padding(.horizontal, -16)
                 HStack {
@@ -245,9 +250,16 @@ struct CalendarView: View {
                     }.accessibilityLabel("Next month")
                 }.padding(.top, 12).padding(.bottom, 12)
                 skyGrid(photoSize: photoSize)
+                if hasSky {
+                    Text("\(month.formatted(.dateTime.month(.wide)).lowercased()) \(month.formatted(.dateTime.year()))")
+                        .font(.system(size: 15, weight: .bold))
+                        .accessibilityAddTraits(.isHeader)
+                        .padding(.top, 14)
+                    Spacer(minLength: 0)
+                } else {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(month.formatted(.dateTime.month(.wide)).lowercased())
-                        .font(.system(size: hasSky ? 72 : 78, weight: .bold)).kerning(hasSky ? -3.5 : -4)
+                        .font(.system(size: 78, weight: .bold)).kerning(-4)
                         .minimumScaleFactor(0.45).lineLimit(1)
                         .padding(.trailing, 8)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -257,15 +269,16 @@ struct CalendarView: View {
                         Text(month.formatted(.dateTime.year()))
                         Spacer(minLength: 4)
                         Text("a little sky to keep\nevery day.")
-                            .font(.system(size: hasSky ? 15 : 16, weight: hasSky ? .regular : .bold))
+                            .font(.system(size: 16, weight: .bold))
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
                     }
-                    .font(.system(size: hasSky ? 15 : 16, weight: .bold))
+                    .font(.system(size: 16, weight: .bold))
                     .frame(height: 40, alignment: .top)
                 }
                 .padding(.top, 14)
                 .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .padding(.horizontal, 16).padding(.bottom, 22)
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
