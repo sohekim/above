@@ -456,9 +456,9 @@ struct CalendarView: View {
                                             .foregroundStyle(.black.opacity(day > today ? 0.25 : 0.7))
                                     }
                                 }
-                                .frame(width: 18, height: 18).clipShape(Circle())
+                                .frame(width: 22, height: 22).clipShape(Circle())
                                 .overlay { if calendar.isDateInToday(day) { Circle().stroke(.black, lineWidth: 1) } }
-                                .frame(width: 18, height: 21)
+                                .frame(width: 22, height: 25)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
