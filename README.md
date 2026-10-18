@@ -37,4 +37,4 @@ Run `swiftc Above/SkyGIFEncoder.swift Tests/SkyGIFEncoderChecks.swift -o /tmp/ab
 
 In Simulator, tap the above wordmark to select a sample sky, no sky, or actual saved data. This preview never changes stored photos. On iPhone, the app automatically uses today’s saved sky.
 
-The decorative black starburst appears only beside the caption in the no-sky layout. The captured-sky header is expanded by 10% twice (21% cumulatively).
+The decorative black starburst appears only beside the caption in the no-sky layout. The captured-sky calendar is bottom aligned above the safe area, and the sky photo fills all remaining space above its header.

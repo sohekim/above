@@ -36,4 +36,4 @@ Both sentences use the same font size. No “Did you know?” label or source li
 
 Camera capture and exact preview-to-capture crop matching require a physical iPhone. The prototype intentionally has no account, sync service, or distribution signing configuration.
 
-The decorative black starburst appears only beside the caption in the no-sky layout. The captured-sky header is expanded by 10% twice (21% cumulatively).
+The decorative black starburst appears only beside the caption in the no-sky layout. The captured-sky calendar is bottom aligned above the safe area, and the sky photo fills all remaining space above its header.
