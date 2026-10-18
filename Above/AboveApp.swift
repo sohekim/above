@@ -239,23 +239,37 @@ struct CalendarView: View {
                 .frame(height: hasSky ? capturedHeaderHeight : emptyHeaderHeight)
                 .frame(minHeight: 52)
                 .padding(.horizontal, -16)
-                HStack {
-                    Button { move(-1) } label: {
-                        Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
-                    }.accessibilityLabel("Previous month")
-                    Spacer()
-                    Button { month = Date() } label: { Text("Today").font(.system(size: 12, weight: .semibold)) }
-                    Spacer()
-                    Button { move(1) } label: {
-                        Image(systemName: "arrow.right").frame(width: 44, height: 44, alignment: .trailing)
-                    }.accessibilityLabel("Next month")
+                HStack(spacing: 12) {
+                    if hasSky {
+                        Text(month.formatted(.dateTime.month(.wide).year()))
+                            .font(.system(size: 18, weight: .regular))
+                            .accessibilityAddTraits(.isHeader)
+                        Spacer()
+                        Button { move(-1) } label: {
+                            Image(systemName: "chevron.left").frame(width: 44, height: 44)
+                        }.accessibilityLabel("Previous month")
+                        Button { move(1) } label: {
+                            Image(systemName: "chevron.right").frame(width: 44, height: 44, alignment: .trailing)
+                        }.accessibilityLabel("Next month")
+                    } else {
+                        Button { move(-1) } label: {
+                            Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
+                        }.accessibilityLabel("Previous month")
+                        Spacer()
+                        Button { month = Date() } label: { Text("Today").font(.system(size: 12, weight: .semibold)) }
+                        Spacer()
+                        Button { move(1) } label: {
+                            Image(systemName: "arrow.right").frame(width: 44, height: 44, alignment: .trailing)
+                        }.accessibilityLabel("Next month")
+                    }
                 }.padding(.top, 12).padding(.bottom, 12)
                 skyGrid(photoSize: photoSize)
                 if hasSky {
-                    Text("\(month.formatted(.dateTime.month(.wide)).lowercased()) \(month.formatted(.dateTime.year()))")
-                        .font(.system(size: 15, weight: .bold))
-                        .accessibilityAddTraits(.isHeader)
-                        .padding(.top, 14)
+                    HStack {
+                        Spacer()
+                        EditorialStarburst().fill(.black).frame(width: 28, height: 28)
+                            .accessibilityHidden(true)
+                    }.padding(.top, 18)
                     Spacer(minLength: 0)
                 } else {
                 VStack(alignment: .leading, spacing: 12) {
@@ -273,6 +287,8 @@ struct CalendarView: View {
                             .font(.system(size: 16, weight: .bold))
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
+                        EditorialStarburst().fill(.black).frame(width: 28, height: 28)
+                            .accessibilityHidden(true)
                     }
                     .font(.system(size: 16, weight: .bold))
                     .frame(height: 40, alignment: .top)
@@ -710,3 +726,20 @@ struct CameraView: View {
         .onDisappear { camera.stop() }
     }
 }
+
+struct EditorialStarburst: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let radius = min(rect.width, rect.height) / 2
+        for index in 0..<24 {
+            let angle = Double(index) * .pi / 12 - .pi / 2
+            let r = radius * (index.isMultiple(of: 2) ? 1 : 0.48)
+            let point = CGPoint(x: center.x + cos(angle) * r, y: center.y + sin(angle) * r)
+            if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
