@@ -12,7 +12,7 @@ Circular sky thumbnails on daily dates. The current empty day has a thin outline
 
 ## Camera
 
-The plus and Look up open the camera directly. Circular live viewfinder, monochrome shutter, arrow-only Back control. The only editorial caption is “Take a moment to look up.” No photo-library import. Capture uses a centered square crop displayed through a circular mask.
+The plus and Look up open the camera directly. The circular live viewfinder is the recording button. Tapping it records ten seconds, with a monochrome progress ring around the circle and no separate shutter. The recording becomes a silent looping GIF. Arrow-only Back control cancels incomplete capture. The only editorial caption is “Take a moment to look up.” No photo-library import. Capture uses a centered square crop displayed through a circular mask. The diary loops the GIF and calendar thumbnails remain still.
 
 ## Diary detail
 
@@ -28,7 +28,7 @@ Shown once, with large editorial copy:
 
 “There’s still a sky above you.”
 
-Both sentences use the same font size. No “Did you know?” label or source link in the UI. A small supporting line reads “One photo. A little more looking up.” and the action is “Let’s look up ↗”. The statistic’s original U.S. scope is recorded in README.md.
+Both sentences use the same font size. No “Did you know?” label or source link in the UI. A small supporting line reads “Ten seconds. A little more looking up.” and the action is “Let’s look up ↗”. The statistic’s original U.S. scope is recorded in README.md.
 
 ## Remaining validation
 

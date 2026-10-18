@@ -6,7 +6,7 @@ connect your iPhone, and Run. Minimum iOS version: 17.
 
 Features
 • Month calendar with circular sky photographs and month navigation.
-• Tap a day or Look up to open the camera directly on an iPhone. No photo library import.
+• Tap a day or Look up to open the camera. Tap the sky circle to record ten seconds and save a silent looping GIF. No photo library import.
 • Tap a past date to take a photo; future dates are disabled.
 • Tap a saved sky to view it, write an optional note, or delete it.
 • Photos and notes are stored locally in the app Documents directory.

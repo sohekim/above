@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
-import AVFoundation
+@preconcurrency import AVFoundation
+import ImageIO
 
 private let paper = Color(red: 0.97, green: 0.96, blue: 0.93)
 
@@ -9,6 +10,7 @@ struct SkyEntry: Codable, Identifiable {
     var date: Date
     var note: String
     var isSample: Bool? = nil
+    var isGIF: Bool? = nil
 }
 
 @MainActor final class SkyStore: ObservableObject {
@@ -59,6 +61,40 @@ struct SkyEntry: Codable, Identifiable {
             try persist()
         } catch { self.error = "This sky couldn’t be saved. Please try again." }
     }
+    func gifURL(_ entry: SkyEntry) -> URL? {
+        guard entry.isGIF == true else { return nil }
+        return directory.appendingPathComponent(entry.id + ".gif")
+    }
+    @discardableResult func saveGIF(_ source: URL, on date: Date) -> Bool {
+        let id = key(date)
+        let previous = entries
+        let gif = directory.appendingPathComponent(id + ".gif")
+        let poster = directory.appendingPathComponent(id + ".jpg")
+        let oldGIF = try? Data(contentsOf: gif)
+        let oldPoster = try? Data(contentsOf: poster)
+        do {
+            let data = try Data(contentsOf: source)
+            guard let image = UIImage(data: data), let jpeg = image.jpegData(compressionQuality: 0.85) else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            try data.write(to: gif, options: .atomic)
+            try jpeg.write(to: poster, options: .atomic)
+            if let index = entries.firstIndex(where: { $0.id == id }) {
+                entries[index].isGIF = true
+                entries[index].isSample = false
+            } else {
+                entries.append(SkyEntry(id: id, date: date, note: "", isGIF: true))
+            }
+            try persist()
+            return true
+        } catch {
+            entries = previous
+            if let oldGIF { try? oldGIF.write(to: gif, options: .atomic) } else { try? FileManager.default.removeItem(at: gif) }
+            if let oldPoster { try? oldPoster.write(to: poster, options: .atomic) } else { try? FileManager.default.removeItem(at: poster) }
+            self.error = "This sky couldn’t be saved. Please try again."
+            return false
+        }
+    }
     func update(_ id: String, note: String) {
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
         entries[index].note = note
@@ -70,6 +106,7 @@ struct SkyEntry: Codable, Identifiable {
         do {
             try persist()
             try? FileManager.default.removeItem(at: directory.appendingPathComponent(id + ".jpg"))
+            try? FileManager.default.removeItem(at: directory.appendingPathComponent(id + ".gif"))
         } catch { entries = previous; self.error = "This sky couldn’t be deleted." }
     }
 }
@@ -114,7 +151,7 @@ struct WelcomeView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 28)
                 Spacer(minLength: 24)
-                Text("One photo. A little more looking up.")
+                Text("Ten seconds. A little more looking up.")
                     .font(.system(size: 14)).padding(.bottom, 18)
                 Button(action: onContinue) {
                     Text("Let’s look up ↗").font(.system(size: 22)).underline()
@@ -194,7 +231,7 @@ struct CalendarView: View {
                 .background(paper)
         }
         .foregroundStyle(.black)
-        .fullScreenCover(isPresented: $camera) { CameraView { image in store.save(image, on: captureDate) } }
+        .fullScreenCover(isPresented: $camera) { CameraView { url in store.saveGIF(url, on: captureDate) } }
         .fullScreenCover(item: $selected) { entry in
             NavigationStack {
                 EntryView(entry: entry).environmentObject(store)
@@ -205,7 +242,7 @@ struct CalendarView: View {
     }
     func openCamera(on date: Date) {
         guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
-            store.error = "Camera is unavailable on this device. Use Above on an iPhone to take a sky photo."
+            store.error = "Camera is unavailable on this device. Use Above on an iPhone to record your sky."
             return
         }
         captureDate = date
@@ -283,8 +320,7 @@ struct EntryView: View {
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                     }
                 }.frame(height: 144, alignment: .top)
-                    Image(uiImage: store.image(entry) ?? UIImage())
-                        .resizable().scaledToFill()
+                    SkyMediaView(poster: store.image(entry), gifURL: store.gifURL(entry))
                         .frame(width: side, height: side).clipShape(Circle())
                         .frame(maxWidth: .infinity)
                         .accessibilityLabel(entry.isSample == true ? "Sample sky, AI-generated" : "Your sky photo")
@@ -373,14 +409,18 @@ struct InlineNoteInput: UIViewRepresentable {
     }
 }
 
-@MainActor final class SkyCamera: NSObject, ObservableObject, AVCapturePhotoCaptureDelegate {
+@MainActor final class SkyCamera: NSObject, ObservableObject, AVCaptureFileOutputRecordingDelegate {
     let session = AVCaptureSession()
-    private let output = AVCapturePhotoOutput()
+    private let output = AVCaptureMovieFileOutput()
     private let queue = DispatchQueue(label: "above.camera")
+    private var cancelled = false
+    private var conversion: Task<Void, Never>?
     @Published var ready = false
-    @Published var takingPhoto = false
+    @Published var recording = false
+    @Published var processing = false
+    @Published var startedAt: Date?
     @Published var message: String?
-    var onCapture: ((UIImage) -> Void)?
+    var onCapture: ((URL) -> Void)?
 
     func start() {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
@@ -396,55 +436,125 @@ struct InlineNoteInput: UIViewRepresentable {
         }
     }
     private func configure() {
-        guard session.inputs.isEmpty else { return }
+        guard !cancelled, session.inputs.isEmpty else { return }
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device) else {
-            message = "A camera is needed to capture your sky. Try Above on your iPhone."
+            message = "A camera is needed to record your sky. Try Above on your iPhone."
             return
         }
         session.beginConfiguration()
-        session.sessionPreset = .photo
+        session.sessionPreset = .high
         guard session.canAddInput(input), session.canAddOutput(output) else {
             session.commitConfiguration()
             message = "The camera couldn’t start. Please try again."
             return
         }
         session.addInput(input)
+        // No audio input: the saved sky is a silent GIF.
         session.addOutput(output)
+        output.maxRecordedDuration = CMTime(seconds: SkyGIFEncoder.duration, preferredTimescale: 600)
         session.commitConfiguration()
         let session = session
-        queue.async { session.startRunning() }
-        ready = true
+        queue.async {
+            session.startRunning()
+            Task { @MainActor in self.ready = session.isRunning && !self.cancelled }
+        }
     }
     func stop() {
+        cancelled = true
+        ready = false
+        conversion?.cancel()
+        if output.isRecording { output.stopRecording() }
         let session = session
         queue.async { if session.isRunning { session.stopRunning() } }
     }
-    func shoot() {
-        guard ready, !takingPhoto else { return }
-        takingPhoto = true
+    func interrupt() {
+        guard recording || processing else { return }
+        message = "That moment was interrupted. Tap the sky to start again."
+        cancelled = true
+        conversion?.cancel()
+        if output.isRecording { output.stopRecording() }
+        startedAt = nil
+    }
+    func record() {
+        guard ready, !recording, !processing else { return }
+        cancelled = false
+        message = nil
+        recording = true
+        startedAt = nil
         if let connection = output.connection(with: .video), connection.isVideoRotationAngleSupported(90) {
             connection.videoRotationAngle = 90
+            // Keep the live viewfinder and saved movie framing consistent.
+            connection.preferredVideoStabilizationMode = .off
         }
-        output.capturePhoto(with: AVCapturePhotoSettings(), delegate: self)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mov")
+        output.startRecording(to: url, recordingDelegate: self)
     }
-    nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
-        let data = photo.fileDataRepresentation()
+    nonisolated func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
         Task { @MainActor in
-            self.takingPhoto = false
-            guard error == nil, let data, let image = UIImage(data: data) else {
-                self.message = "This photo couldn’t be captured. Please try again."
+            if self.cancelled { self.output.stopRecording() }
+            else { self.startedAt = Date() }
+        }
+    }
+    nonisolated func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo url: URL, from connections: [AVCaptureConnection], error: Error?) {
+        let completed = error == nil || (error as NSError?)?.userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool == true
+        Task { @MainActor in
+            self.recording = false
+            guard !self.cancelled else { try? FileManager.default.removeItem(at: url); return }
+            guard completed else {
+                self.message = "The recording couldn’t finish. Tap the sky to try again."
+                try? FileManager.default.removeItem(at: url)
                 return
             }
-            // Normalize orientation and retain the center square seen by the circular preview.
-            let side = min(image.size.width, image.size.height)
-            let format = UIGraphicsImageRendererFormat()
-            format.scale = 1
-            let crop = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).image { _ in
-                image.draw(at: CGPoint(x: (side - image.size.width) / 2, y: (side - image.size.height) / 2))
+            self.processing = true
+            self.conversion = Task {
+                defer {
+                    self.processing = false
+                    try? FileManager.default.removeItem(at: url)
+                }
+                do {
+                    let gif = try await SkyGIFEncoder.encode(movieURL: url)
+                    defer { try? FileManager.default.removeItem(at: gif) }
+                    guard !Task.isCancelled, !self.cancelled else { return }
+                    self.onCapture?(gif)
+                } catch is CancellationError { }
+                catch { self.message = error.localizedDescription }
             }
-            self.onCapture?(crop)
         }
+    }
+}
+
+/// Decode once per file; UIImageView plays the loop without rebuilding SwiftUI on each frame.
+struct SkyMediaView: UIViewRepresentable {
+    let poster: UIImage?
+    let gifURL: URL?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    final class Coordinator { var loadedURL: URL?; var reduceMotion = false }
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeUIView(context: Context) -> UIImageView {
+        let view = UIImageView()
+        view.contentMode = .scaleAspectFill
+        view.clipsToBounds = true
+        view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        view.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        return view
+    }
+    func updateUIView(_ view: UIImageView, context: Context) {
+        guard context.coordinator.loadedURL != gifURL || context.coordinator.reduceMotion != reduceMotion || view.image == nil else { return }
+        context.coordinator.loadedURL = gifURL
+        context.coordinator.reduceMotion = reduceMotion
+        view.image = poster
+        guard !reduceMotion, let gifURL, let source = CGImageSourceCreateWithURL(gifURL as CFURL, nil) else { return }
+        var frames: [UIImage] = []
+        var duration = 0.0
+        for index in 0..<CGImageSourceGetCount(source) {
+            guard let frame = CGImageSourceCreateImageAtIndex(source, index, nil) else { continue }
+            frames.append(UIImage(cgImage: frame))
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
+            let gif = properties?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
+            duration += gif?[kCGImagePropertyGIFDelayTime] as? Double ?? 0.2
+        }
+        if !frames.isEmpty { view.image = UIImage.animatedImage(with: frames, duration: duration) }
     }
 }
 
@@ -470,55 +580,70 @@ struct RoundCameraPreview: UIViewRepresentable {
 }
 struct CameraView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(\.scenePhase) var scenePhase
     @StateObject private var camera = SkyCamera()
-    let onCapture: (UIImage) -> Void
+    let onCapture: (URL) -> Bool
     var body: some View {
         GeometryReader { geometry in
-            let side = max(0, min(geometry.size.width - 56, geometry.size.height * 0.48))
+            let side = max(0, min(geometry.size.width - 72, geometry.size.height * 0.48))
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Button { dismiss() } label: {
-                        Image(systemName: "arrow.left").frame(width: 44, height: 44)
+                    Button { camera.stop(); dismiss() } label: {
+                        Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
                     }.accessibilityLabel("Back")
                     Spacer()
                     Text("above").font(.custom("BradleyHandITCTT-Bold", size: 26)).tracking(-1)
                 }
                 Spacer(minLength: 20)
-                ZStack {
-                    Circle().fill(Color.black.opacity(0.05))
-                    RoundCameraPreview(session: camera.session).clipShape(Circle())
-                    if let message = camera.message {
-                        Text(message).font(.system(size: 15)).multilineTextAlignment(.center).padding(40)
+                Button { camera.record() } label: {
+                    ZStack {
+                        Circle().fill(Color.black.opacity(0.05))
+                        RoundCameraPreview(session: camera.session).clipShape(Circle())
+                        if camera.processing { ProgressView().tint(.white).padding(16).background(.black.opacity(0.5), in: Circle()) }
+                        if let message = camera.message {
+                            Text(message).font(.system(size: 15)).multilineTextAlignment(.center)
+                                .padding(30).background(paper.opacity(0.92), in: Circle())
+                        }
+                    }
+                    .frame(width: side, height: side)
+                    .overlay {
+                        TimelineView(.animation(paused: !camera.recording)) { context in
+                            let elapsed = camera.startedAt.map { context.date.timeIntervalSince($0) } ?? 0
+                            let progress = camera.processing ? 1 : min(1, max(0, elapsed / SkyGIFEncoder.duration))
+                            ZStack {
+                                Circle().stroke(.black.opacity(0.15), lineWidth: 2)
+                                Circle().trim(from: 0, to: progress)
+                                    .stroke(.black, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                                    .rotationEffect(.degrees(-90))
+                            }.padding(-8)
+                        }.allowsHitTesting(false)
                     }
                 }
-                .frame(width: side, height: side)
-                .overlay(Circle().stroke(.black.opacity(0.15), lineWidth: 1))
+                .buttonStyle(.plain)
+                .disabled(!camera.ready || camera.recording || camera.processing)
+                .accessibilityLabel(camera.recording ? "Recording ten seconds of sky" : "Record sky for ten seconds")
+                .accessibilityHint("Tap the sky circle to begin. The recording ends automatically.")
                 .frame(maxWidth: .infinity)
                 Spacer(minLength: 20)
-                Text("Take a moment to look up.")
-                    .font(.system(size: 12)).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                Spacer(minLength: 20)
-                Button { camera.shoot() } label: {
-                    Circle().stroke(.black, lineWidth: 1.5)
-                        .overlay(Circle().fill(.black).padding(7))
-                        .overlay { if camera.takingPhoto { ProgressView().tint(.white) } }
-                        .frame(width: 70, height: 70)
-                }
-                .buttonStyle(.plain).disabled(!camera.ready || camera.takingPhoto)
-                .opacity(camera.ready ? 1 : 0.3)
-                .accessibilityLabel("Take sky photo")
-                .frame(maxWidth: .infinity)
-                Spacer(minLength: 18)
+                VStack(spacing: 10) {
+                    Text("Take a moment to look up.").font(.system(size: 15))
+                    Text(camera.processing ? "Keeping your sky…" : camera.recording ? "Stay here. Just ten seconds." : "Tap the sky. Stay for ten seconds.")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                }.frame(maxWidth: .infinity).accessibilityElement(children: .combine)
+                Spacer(minLength: 24)
             }
             .padding(.horizontal, 28).padding(.top, 12)
             .frame(width: geometry.size.width, height: geometry.size.height)
             .background(paper).foregroundStyle(.black)
         }
         .onAppear {
-            camera.onCapture = { image in onCapture(image); dismiss() }
+            camera.onCapture = { url in
+                if onCapture(url) { dismiss() }
+                else { camera.message = "This sky couldn’t be saved. Tap the circle to try again." }
+            }
             camera.start()
         }
+        .onChange(of: scenePhase) { _, phase in if phase != .active { camera.interrupt() } }
         .onDisappear { camera.stop() }
     }
 }
