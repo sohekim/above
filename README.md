@@ -9,8 +9,8 @@ Open `Above.xcodeproj` in Xcode 16 or newer and run on an iPhone with iOS 17 or 
 ## Current experience
 
 - Cream background, handwritten Above wordmark, bold lowercase month headings.
-- Monthly calendar fits the screen; header, grid and bottom action remain consistently positioned across months.
-- Tap an empty past or current date, or Look up, to open the camera directly. Tap the sky circle to start a silent ten-second recording; a ring tracks progress. No separate shutter or photo-library import.
+- Monthly calendar fits the screen; header and grid remain consistently positioned across months. The wordmark is right-aligned; there is no home subtitle or Look up button.
+- Tap an empty past or current date to open the camera directly. Tap the sky circle to start a silent ten-second recording; a ring tracks progress. No separate shutter or photo-library import.
 - Recordings become 480 × 480 looping GIFs at 5 fps. The diary animates them inside a circle; the calendar uses a still thumbnail. Existing photos remain readable. Reduce Motion shows a still.
 - Interrupted recordings are discarded. GIF conversion runs off the main thread; temporary video files are removed.
 - Full-screen photo detail with date and a scrollable note.

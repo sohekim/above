@@ -4,15 +4,15 @@ Above is a simple invitation to look up once a day, expressed as an independent 
 
 ## Visual direction
 
-Warm cream paper, black interface, generous whitespace, original bold system sans-serif for month and date headings. A smaller Bradley Hand wordmark provides the handwritten accent. Sky photographs supply the color. No large illustrations, colored action buttons, Archive, or sharing controls.
+Warm cream paper, black interface, generous whitespace, original bold system sans-serif for month and date headings. A smaller Bradley Hand wordmark, right-aligned on the home screen, provides the handwritten accent. Sky photographs supply the color. No large illustrations, colored action buttons, Archive, or sharing controls.
 
 ## Calendar
 
-Circular sky thumbnails on daily dates. The current empty day has a thin outlined plus. Large lowercase month name; consistent reserved heading and subtitle heights keep the calendar from shifting between months. Look up remains fixed at the bottom with a consistent 22-point font. The home screen fits without scrolling.
+Circular sky thumbnails on daily dates. The current empty day has a thin outlined plus. Large lowercase month name; consistent reserved heading heights keep the calendar from shifting between months. No subtitle or Look up button on the home screen; users tap a date to open capture. The home screen fits without scrolling.
 
 ## Camera
 
-The plus and Look up open the camera directly. The circular live viewfinder is the recording button. Tapping it records ten seconds, with a monochrome progress ring around the circle and no separate shutter. The recording becomes a silent looping GIF. Arrow-only Back control cancels incomplete capture. Before recording, the circle contains “tap to keep a little sky”. The caption disappears during recording, leaving the progress ring. There is no text below the circle. No photo-library import. Capture uses a centered square crop displayed through a circular mask. The diary loops the GIF and calendar thumbnails remain still.
+The calendar date opens the camera directly. The circular live viewfinder is the recording button. Tapping it records ten seconds, with a monochrome progress ring around the circle and no separate shutter. The recording becomes a silent looping GIF. Arrow-only Back control cancels incomplete capture. Before recording, the circle contains “tap to keep a little sky”. The caption disappears during recording, leaving the progress ring. There is no text below the circle. No photo-library import. Capture uses a centered square crop displayed through a circular mask. The diary loops the GIF and calendar thumbnails remain still.
 
 ## Diary detail
 

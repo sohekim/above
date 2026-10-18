@@ -183,8 +183,8 @@ struct CalendarView: View {
                                        (geometry.size.height - 410) / 6 - 32))
             VStack(alignment: .leading, spacing: 0) {
                     HStack {
-                        Text("above").font(.custom("BradleyHandITCTT-Bold", size: 26)).tracking(-1)
                         Spacer()
+                        Text("above").font(.custom("BradleyHandITCTT-Bold", size: 26)).tracking(-1)
                     }.padding(.bottom, geometry.size.height > 700 ? 38 : 16)
                     Text(month.formatted(.dateTime.month(.wide)).lowercased())
                         .font(.system(size: geometry.size.height > 650 ? 88 : 68, weight: .bold)).kerning(-4)
@@ -194,7 +194,6 @@ struct CalendarView: View {
                         .frame(height: geometry.size.height > 650 ? 106 : 82, alignment: .bottomLeading)
                         .layoutPriority(1).accessibilityAddTraits(.isHeader)
                     HStack(alignment: .firstTextBaseline) {
-                        Text("A little more looking up.").font(.system(size: 15))
                         Spacer()
                         Text(month.formatted(.dateTime.year())).font(.system(size: 13))
                     }.frame(height: 20).padding(.top, 6)
@@ -211,22 +210,10 @@ struct CalendarView: View {
                 .padding(.horizontal, 28).padding(.top, 18).padding(.bottom, 112)
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
                 .overlay(alignment: .bottomLeading) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Button { openCamera(on: Date()) } label: {
-                                Text("Look up ↗")
-                                    .font(.system(size: 22, weight: .regular))
-                                    .underline()
-                                    .fixedSize()
-                                    .frame(height: 52, alignment: .leading)
-                            }.buttonStyle(.plain)
-                            Spacer()
-                        }.frame(height: 52)
-                        Text("One sky. Every day.")
-                            .font(.system(size: 11)).foregroundStyle(.secondary)
-                            .frame(height: 14, alignment: .leading)
-                    }
-                    .padding(.horizontal, 28).padding(.bottom, 14)
+                    Text("One sky. Every day.")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                        .frame(height: 14, alignment: .leading)
+                        .padding(.horizontal, 28).padding(.bottom, 14)
                 }
                 .background(paper)
         }
