@@ -168,6 +168,7 @@ struct WelcomeView: View {
 struct CalendarView: View {
     @EnvironmentObject var store: SkyStore
     @State private var month = Date()
+    @State private var yearView = false
     @State private var captureDate = Date()
     @State private var selected: SkyEntry?
     @State private var camera = false
@@ -204,6 +205,10 @@ struct CalendarView: View {
     }
     var offset: Int { (calendar.component(.weekday, from: monthStart) + 5) % 7 }
     var body: some View {
+        Group {
+        if yearView {
+            yearlyCalendar
+        } else {
         GeometryReader { geometry in
             let photoSize = max(20, min((geometry.size.width - 50) / 7,
                                        (geometry.size.height - 290) / 6 - 4))
@@ -295,6 +300,23 @@ struct CalendarView: View {
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             .background(paper)
         }
+        }
+        }
+        .overlay(alignment: .topLeading) {
+            HStack(spacing: 14) {
+                Button { yearView = false } label: {
+                    Text("Month").fontWeight(yearView ? .regular : .semibold)
+                        .opacity(yearView ? 0.5 : 1)
+                }
+                Button { yearView = true } label: {
+                    Text("Year").fontWeight(yearView ? .semibold : .regular)
+                        .opacity(yearView ? 1 : 0.5)
+                }
+            }
+            .font(.system(size: 13))
+            .foregroundStyle(!yearView && hasSky ? .white : .black)
+            .padding(.leading, 16).padding(.top, 16)
+        }
         .foregroundStyle(.black)
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { today = $0 }
         .fullScreenCover(isPresented: $camera) { CameraView { url in store.saveGIF(url, on: captureDate) } }
@@ -305,6 +327,57 @@ struct CalendarView: View {
             }
         }
         .alert("Something went wrong", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("OK") { store.error = nil } } message: { Text(store.error ?? "") }
+    }
+    var yearlyCalendar: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack { Spacer(); wordmark }.padding(.top, 12)
+            HStack {
+                Text(month.formatted(.dateTime.year())).font(.system(size: 54, weight: .bold)).tracking(-2)
+                Spacer()
+                Button { moveYear(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
+                    .accessibilityLabel("Previous year")
+                Button { moveYear(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
+                    .accessibilityLabel("Next year")
+            }.padding(.top, 18)
+            ScrollView {
+                YearFlowLayout(spacing: 3) {
+                    ForEach(1...12, id: \.self) { number in
+                        let start = calendar.date(from: DateComponents(year: calendar.component(.year, from: month), month: number, day: 1))!
+                        Text(start.formatted(.dateTime.month(.abbreviated)).uppercased())
+                            .font(.system(size: 22, weight: .black)).tracking(-1)
+                            .padding(.horizontal, 3).frame(height: 21)
+                            .accessibilityAddTraits(.isHeader)
+                        ForEach(0..<(calendar.range(of: .day, in: .month, for: start)?.count ?? 0), id: \.self) { index in
+                            let day = calendar.date(byAdding: .day, value: index, to: start)!
+                            Button {
+                                if let entry = store.entry(day) { selected = entry }
+                                else { openCamera(on: day) }
+                            } label: {
+                                ZStack {
+                                    if let entry = store.entry(day), let image = store.image(entry) {
+                                        Image(uiImage: image).resizable().scaledToFill()
+                                    } else {
+                                        Text("\(index + 1)").font(.system(size: 10, weight: .regular))
+                                            .foregroundStyle(.black.opacity(day > today ? 0.25 : 0.7))
+                                    }
+                                }
+                                .frame(width: 18, height: 18).clipShape(Circle())
+                                .overlay { if calendar.isDateInToday(day) { Circle().stroke(.black, lineWidth: 1) } }
+                                .frame(width: 18, height: 21)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(calendar.startOfDay(for: day) > calendar.startOfDay(for: today))
+                            .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(store.entry(day) == nil ? "no sky" : "sky saved")")
+                        }
+                    }
+                }.padding(.bottom, 24)
+            }.scrollIndicators(.hidden)
+        }
+        .padding(.horizontal, 16).background(paper)
+    }
+    func moveYear(_ amount: Int) {
+        month = calendar.date(byAdding: .year, value: amount, to: month)!
     }
     func openCamera(on date: Date) {
         guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
@@ -736,3 +809,34 @@ struct EditorialStarburst: Shape {
     }
 }
 
+
+struct YearFlowLayout: Layout {
+    var spacing: CGFloat = 5
+    func positions(width: CGFloat, subviews: Subviews) -> (CGSize, [CGPoint]) {
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var points: [CGPoint] = []
+        for view in subviews {
+            let size = view.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > width {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            points.append(CGPoint(x: x, y: y))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        return (CGSize(width: width, height: y + rowHeight), points)
+    }
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        positions(width: proposal.width ?? 360, subviews: subviews).0
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let points = positions(width: bounds.width, subviews: subviews).1
+        for (index, view) in subviews.enumerated() {
+            view.place(at: CGPoint(x: bounds.minX + points[index].x, y: bounds.minY + points[index].y), anchor: .topLeading, proposal: .unspecified)
+        }
+    }
+}

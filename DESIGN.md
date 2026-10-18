@@ -39,3 +39,5 @@ Camera capture and exact preview-to-capture crop matching require a physical iPh
 The decorative black starburst appears only beside the caption in the no-sky layout. The captured-sky calendar is bottom aligned above the safe area, and the sky photo fills all remaining space above its header.
 
 All screen backgrounds use the same neutral off-white (98% white), without a yellow tint.
+
+Month / Year controls switch between the existing monthly layout and a scrollable editorial year view. Bold month abbreviations flow inline with day numbers; saved entries replace day numbers with circular sky posters. Year arrows navigate years. Tapping a saved day opens its diary; past or current empty days open capture. Future dates are disabled.
