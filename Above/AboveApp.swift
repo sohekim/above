@@ -505,12 +505,16 @@ struct CalendarView: View {
                             } else {
                                 Circle().fill(Color(white: 0.95))
                                 if calendar.isDateInToday(day) {
-                                    Circle().stroke(.black, lineWidth: 1)
                                     Image(systemName: "plus").font(.system(size: 17, weight: .light))
                                 }
                             }
                         }
                         .frame(width: photoSize, height: photoSize).clipShape(Circle())
+                        .overlay {
+                            if calendar.isDate(day, inSameDayAs: today) {
+                                Circle().strokeBorder(.black, lineWidth: 1.5)
+                            }
+                        }
                     }.frame(maxWidth: .infinity, alignment: .center).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
