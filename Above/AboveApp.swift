@@ -525,7 +525,7 @@ struct EntryView: View {
     @State private var confirmDelete = false
     @State private var draft = ""
     @State private var restingHeight: CGFloat = 0
-    @FocusState private var noteFocused: Bool
+    @State private var noteFocused = false
     var savedNote: String { store.entries.first(where: { $0.id == entry.id })?.note ?? "" }
     func saveNote() {
         store.update(entry.id, note: draft.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -624,7 +624,8 @@ struct InlineNoteInput: UIViewRepresentable {
     func updateUIView(_ view: UITextView, context: Context) {
         context.coordinator.parent = self
         if view.text != text { view.text = text }
-        if !focused && view.isFirstResponder { view.resignFirstResponder() }
+        // UIKit owns responder changes; SwiftUI updates during keyboard presentation
+        // must not dismiss an editing session using a stale focus value.
     }
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
         guard let width = proposal.width, width > 0 else { return nil }
