@@ -249,7 +249,7 @@ struct CalendarView: View {
                 .padding(.horizontal, -16)
                 HStack(spacing: 12) {
                     if hasSky {
-                        Text(month.formatted(.dateTime.month(.wide).year()).uppercased())
+                        Text(month.formatted(.dateTime.month(.abbreviated).year()).uppercased())
                             .font(.system(size: 24, weight: .black)).tracking(-0.8)
                             .lineLimit(1).minimumScaleFactor(0.75)
                             .accessibilityAddTraits(.isHeader)
