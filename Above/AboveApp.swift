@@ -180,7 +180,7 @@ struct CalendarView: View {
     var body: some View {
         GeometryReader { geometry in
             let screenHeight = geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom
-            let calendarTop = max(108, screenHeight * 0.25 - geometry.safeAreaInsets.top)
+            let calendarTop = max(108, screenHeight * 0.35 - geometry.safeAreaInsets.top)
             let photoSize = max(20, min((geometry.size.width - 52) / 7,
                                        (geometry.size.height - calendarTop - 230) / 6 - 5))
             VStack(alignment: .leading, spacing: 0) {
