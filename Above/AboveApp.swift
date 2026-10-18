@@ -135,7 +135,7 @@ struct WelcomeView: View {
         GeometryReader { geometry in
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text("above").font(.custom("BradleyHandITCTT-Bold", size: 26)).tracking(-1)
+                    Text("above").font(.system(size: 26, weight: .medium)).tracking(-0.6)
                     Spacer()
                     Button("Skip") { onContinue() }.font(.system(size: 15))
                 }
@@ -192,10 +192,10 @@ struct CalendarView: View {
             Button("오늘 하늘 없음") { previewSky = false }
             Button("실제 저장된 하늘") { previewSky = nil }
         } label: {
-            Text("above").font(.custom("BradleyHandITCTT-Bold", size: 20)).tracking(-1)
+            Text("above").font(.system(size: 20, weight: .medium)).tracking(-0.6)
         }.accessibilityLabel("above, compare home versions")
         #else
-        Text("above").font(.custom("BradleyHandITCTT-Bold", size: 20)).tracking(-1)
+        Text("above").font(.system(size: 20, weight: .medium)).tracking(-0.6)
         #endif
     }
     var monthStart: Date { calendar.date(from: calendar.dateComponents([.year, .month], from: month))! }
@@ -665,7 +665,7 @@ struct CameraView: View {
                         Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
                     }.accessibilityLabel("Back")
                     Spacer()
-                    Text("above").font(.custom("BradleyHandITCTT-Bold", size: 26)).tracking(-1)
+                    Text("above").font(.system(size: 26, weight: .medium)).tracking(-0.6)
                 }
                 Spacer(minLength: 20)
                 Button { camera.record() } label: {
