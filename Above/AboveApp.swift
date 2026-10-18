@@ -179,43 +179,45 @@ struct CalendarView: View {
     var offset: Int { (calendar.component(.weekday, from: monthStart) + 5) % 7 }
     var body: some View {
         GeometryReader { geometry in
-            let photoSize = max(16, min((geometry.size.width - 104) / 7,
-                                       (geometry.size.height - 410) / 6 - 32))
+            let photoSize = max(20, min((geometry.size.width - 52) / 7,
+                                       (geometry.size.height - 280) / 6 - 19))
             VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        Spacer()
-                        Text("above").font(.custom("BradleyHandITCTT-Bold", size: 26)).tracking(-1)
-                    }.padding(.bottom, geometry.size.height > 700 ? 38 : 16)
+                HStack {
+                    Spacer()
+                    Text("above").font(.custom("BradleyHandITCTT-Bold", size: 26)).tracking(-1)
+                }.frame(height: 34).padding(.bottom, 14)
+                HStack {
+                    Button { move(-1) } label: {
+                        Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
+                    }.accessibilityLabel("Previous month")
+                    Spacer()
+                    Button { month = Date() } label: { Text("Today").font(.system(size: 12)) }
+                    Spacer()
+                    Button { move(1) } label: {
+                        Image(systemName: "arrow.right").frame(width: 44, height: 44, alignment: .trailing)
+                    }.accessibilityLabel("Next month")
+                }.padding(.bottom, 12)
+                skyGrid(photoSize: photoSize)
+                Spacer(minLength: 14)
+                VStack(alignment: .leading, spacing: 6) {
                     Text(month.formatted(.dateTime.month(.wide)).lowercased())
-                        .font(.system(size: geometry.size.height > 650 ? 88 : 68, weight: .bold)).kerning(-4)
+                        .font(.system(size: 78, weight: .bold)).kerning(-4)
                         .minimumScaleFactor(0.45).lineLimit(1)
-                        .padding(.trailing, 12)
+                        .padding(.trailing, 8)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .frame(height: geometry.size.height > 650 ? 106 : 82, alignment: .bottomLeading)
-                        .layoutPriority(1).accessibilityAddTraits(.isHeader)
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(month.formatted(.dateTime.year())).font(.system(size: 13))
-                        Spacer()
-                    }.frame(height: 20).padding(.top, 6)
-                    HStack {
-                        Button { move(-1) } label: { Image(systemName: "arrow.left").frame(width: 44, height: 44) }.accessibilityLabel("Previous month")
-                        Spacer()
-                        Button { month = Date() } label: { Text("Today").font(.system(size: 12)) }
-                        Spacer()
-                        Button { move(1) } label: { Image(systemName: "arrow.right").frame(width: 44, height: 44) }.accessibilityLabel("Next month")
-                    }.padding(.top, 16).padding(.bottom, 8)
-                    skyGrid(photoSize: photoSize)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 28).padding(.top, 18).padding(.bottom, 112)
-                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
-                .overlay(alignment: .bottomLeading) {
+                        .frame(height: 94, alignment: .bottomLeading)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(month.formatted(.dateTime.year()))
+                        .font(.system(size: 16, weight: .bold))
                     Text("a little sky to keep every day.")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                        .frame(height: 14, alignment: .leading)
-                        .padding(.horizontal, 28).padding(.bottom, 14)
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                        .padding(.top, 10)
                 }
-                .background(paper)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 22)
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
+            .background(Color.white)
         }
         .foregroundStyle(.black)
         .fullScreenCover(isPresented: $camera) { CameraView { url in store.saveGIF(url, on: captureDate) } }
@@ -235,31 +237,40 @@ struct CalendarView: View {
         captureDate = date
         camera = true
     }
-    var calendarGrid: some View { skyGrid(photoSize: 42) }
     func skyGrid(photoSize: CGFloat) -> some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 7), spacing: 12) {
-            ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, label in
-                Text(label).font(.system(size: 11)).foregroundStyle(.secondary).padding(.bottom, 10)
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 5) {
+            ForEach(Array(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].enumerated()), id: \.offset) { _, label in
+                Text(label).font(.system(size: 10, weight: .bold))
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 8)
             }
-            ForEach(-offset..<0, id: \.self) { _ in Color.clear.frame(height: photoSize + 20) }
+            ForEach(-offset..<0, id: \.self) { _ in Color.clear.frame(height: photoSize + 15) }
             ForEach(days, id: \.self) { day in
                 Button {
                     if let entry = store.entry(day) { selected = entry }
                     else { openCamera(on: day) }
                 } label: {
-                    VStack(spacing: 7) {
-                        GeometryReader { proxy in
-                            if let entry = store.entry(day), let image = store.image(entry) {
-                                Image(uiImage: image).resizable().scaledToFill().frame(width: proxy.size.width, height: proxy.size.width).clipShape(Circle())
-                            } else if calendar.isDateInToday(day) {
-                                Circle().stroke(.black, lineWidth: 1).overlay(Image(systemName: "plus").font(.system(size: 15, weight: .light)))
-                            } else { Color.clear }
-                        }.frame(width: photoSize, height: photoSize)
-                        Text("\(calendar.component(.day, from: day))").font(.system(size: 11))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(calendar.component(.day, from: day))")
+                            .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(day > Date() ? .secondary : .primary)
-                    }.contentShape(Rectangle())
-                }.buttonStyle(.plain).disabled(calendar.startOfDay(for: day) > calendar.startOfDay(for: Date()))
-                    .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(store.entry(day) == nil ? "no photo" : "sky saved")")
+                            .frame(height: 13, alignment: .leading)
+                        ZStack {
+                            if let entry = store.entry(day), let image = store.image(entry) {
+                                Image(uiImage: image).resizable().scaledToFill()
+                            } else {
+                                Circle().fill(Color(white: 0.95))
+                                if calendar.isDateInToday(day) {
+                                    Circle().stroke(.black, lineWidth: 1)
+                                    Image(systemName: "plus").font(.system(size: 17, weight: .light))
+                                }
+                            }
+                        }
+                        .frame(width: photoSize, height: photoSize).clipShape(Circle())
+                    }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(calendar.startOfDay(for: day) > calendar.startOfDay(for: Date()))
+                .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(store.entry(day) == nil ? "no sky" : "sky saved")")
             }
         }
     }
