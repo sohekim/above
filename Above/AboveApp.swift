@@ -194,8 +194,8 @@ struct CalendarView: View {
                         .frame(height: geometry.size.height > 650 ? 106 : 82, alignment: .bottomLeading)
                         .layoutPriority(1).accessibilityAddTraits(.isHeader)
                     HStack(alignment: .firstTextBaseline) {
-                        Spacer()
                         Text(month.formatted(.dateTime.year())).font(.system(size: 13))
+                        Spacer()
                     }.frame(height: 20).padding(.top, 6)
                     HStack {
                         Button { move(-1) } label: { Image(systemName: "arrow.left").frame(width: 44, height: 44) }.accessibilityLabel("Previous month")
