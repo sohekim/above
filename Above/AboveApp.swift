@@ -169,6 +169,7 @@ struct CalendarView: View {
     @EnvironmentObject var store: SkyStore
     @State private var month = Date()
     @State private var yearView = false
+    @State private var calendarStyle = "Month"
     @State private var captureDate = Date()
     @State private var selected: SkyEntry?
     @State private var camera = false
@@ -208,6 +209,8 @@ struct CalendarView: View {
         Group {
         if yearView {
             yearlyCalendar
+        } else if calendarStyle != "Month" {
+            graphicCalendar(blocks: calendarStyle == "Blocks")
         } else {
         GeometryReader { geometry in
             let photoSize = max(20, min((geometry.size.width - 50) / 7,
@@ -304,17 +307,19 @@ struct CalendarView: View {
         }
         .overlay(alignment: .topLeading) {
             HStack(spacing: 14) {
-                Button { yearView = false } label: {
-                    Text("Month").fontWeight(yearView ? .regular : .semibold)
-                        .opacity(yearView ? 0.5 : 1)
-                }
-                Button { yearView = true } label: {
-                    Text("Year").fontWeight(yearView ? .semibold : .regular)
-                        .opacity(yearView ? 1 : 0.5)
+                ForEach(["Month", "Year", "Blocks", "Poster"], id: \.self) { option in
+                    Button {
+                        yearView = option == "Year"
+                        calendarStyle = option
+                    } label: {
+                        Text(option).fontWeight(calendarStyle == option ? .semibold : .regular)
+                            .opacity(calendarStyle == option ? 1 : 0.5)
+                    }
+                    .accessibilityAddTraits(calendarStyle == option ? .isSelected : [])
                 }
             }
-            .font(.system(size: 13))
-            .foregroundStyle(!yearView && hasSky ? .white : .black)
+            .font(.system(size: 12))
+            .foregroundStyle(calendarStyle == "Month" && hasSky ? .white : .black)
             .padding(.leading, 16).padding(.top, 16)
         }
         .foregroundStyle(.black)
@@ -327,6 +332,93 @@ struct CalendarView: View {
             }
         }
         .alert("Something went wrong", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("OK") { store.error = nil } } message: { Text(store.error ?? "") }
+    }
+    func graphicCalendar(blocks: Bool) -> some View {
+        GeometryReader { geometry in
+            let side = (geometry.size.width - 44) / 7
+            let weekCount = (offset + days.count + 6) / 7
+            VStack(alignment: .leading, spacing: 0) {
+                HStack { Spacer(); wordmark }.padding(.top, 46)
+                HStack {
+                    Text(month.formatted(.dateTime.month(.twoDigits)))
+                        .font(.system(size: blocks ? 110 : 48, weight: .black)).tracking(-5)
+                    Spacer()
+                    Text("’" + String(calendar.component(.year, from: month) % 100))
+                        .font(.system(size: blocks ? 24 : 48, weight: .bold)).tracking(-2)
+                }.padding(.top, 18)
+                if !blocks {
+                    Rectangle().frame(height: 1).padding(.vertical, 12)
+                    Text(month.formatted(.dateTime.month(.abbreviated)).uppercased())
+                        .font(.system(size: 140, weight: .black)).tracking(-9)
+                        .minimumScaleFactor(0.5).lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if blocks { Color.clear.frame(height: 16) }
+                else { Spacer(minLength: 12) }
+                HStack(spacing: 2) {
+                    ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, name in
+                        Text(name).font(.system(size: blocks ? 10 : 25, weight: .bold))
+                            .frame(width: side)
+                    }
+                }.padding(.bottom, blocks ? 8 : 12)
+                VStack(spacing: blocks ? 2 : 6) {
+                    ForEach(0..<weekCount, id: \.self) { row in
+                        HStack(spacing: 2) {
+                            ForEach(0..<7, id: \.self) { column in
+                                let index = row * 7 + column - offset
+                                if index >= 0 && index < days.count {
+                                    graphicDay(days[index], side: side, blocks: blocks)
+                                } else {
+                                    Color.clear.frame(width: side, height: side)
+                                }
+                            }
+                        }
+                        .background {
+                            if blocks { Capsule().fill(.black) }
+                        }
+                    }
+                }
+                HStack {
+                    Button { move(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44, alignment: .leading) }
+                        .accessibilityLabel("Previous month")
+                    Spacer()
+                    Text(month.formatted(.dateTime.month(.wide)).lowercased())
+                        .font(.system(size: 12, weight: .medium))
+                    Spacer()
+                    Button { move(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44, alignment: .trailing) }
+                        .accessibilityLabel("Next month")
+                }.padding(.top, 18)
+                if blocks { Spacer(minLength: 0) }
+            }
+            .padding(.horizontal, 16).padding(.bottom, 18)
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .background(paper)
+        }
+    }
+    func graphicDay(_ day: Date, side: CGFloat, blocks: Bool) -> some View {
+        Button {
+            if let entry = store.entry(day) { selected = entry }
+            else { openCamera(on: day) }
+        } label: {
+            ZStack {
+                if let entry = store.entry(day), let image = store.image(entry) {
+                    Image(uiImage: image).resizable().scaledToFill()
+                } else if blocks {
+                    Circle().fill(paper)
+                }
+                Text("\(calendar.component(.day, from: day))")
+                    .font(.system(size: blocks ? 10 : 31, weight: .bold))
+                    .foregroundStyle(store.entry(day) != nil ? .white : .black)
+                    .shadow(color: store.entry(day) != nil ? .black.opacity(0.5) : .clear, radius: 2)
+            }
+            .frame(width: side - (blocks ? 5 : 0), height: side - (blocks ? 5 : 0))
+            .clipShape(Circle())
+            .overlay { if calendar.isDateInToday(day) { Circle().stroke(blocks ? .white : .black, lineWidth: 1) } }
+            .frame(width: side, height: side)
+        }
+        .buttonStyle(.plain)
+        .disabled(calendar.startOfDay(for: day) > calendar.startOfDay(for: today))
+        .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(store.entry(day) == nil ? "no sky" : "sky saved")")
     }
     var yearlyCalendar: some View {
         VStack(alignment: .leading, spacing: 20) {

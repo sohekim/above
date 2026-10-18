@@ -41,3 +41,5 @@ The decorative black starburst appears only beside the caption in the no-sky lay
 All screen backgrounds use the same neutral off-white (98% white), without a yellow tint.
 
 Month / Year controls switch between the existing monthly layout and a scrollable editorial year view. Bold month abbreviations flow inline with day numbers; saved entries replace day numbers with circular sky posters. Year arrows navigate years. Tapping a saved day opens its diary; past or current empty days open capture. Future dates are disabled.
+
+Two additional monthly styles are available from the top selector: Blocks uses an oversized month number with black capsule week rows and pale circular dates; Poster uses an oversized month abbreviation, a ruled month/year header, and bold date numerals. Saved days show sky photos in both styles; navigation and diary/capture actions use the same stored entries. All styles retain the neutral off-white background.
