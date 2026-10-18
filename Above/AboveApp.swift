@@ -211,7 +211,7 @@ struct CalendarView: View {
             let gridHeight = 24 + CGFloat(rows) * photoSize + CGFloat(rows - 1) * 4
             let fullHeight = geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom
             let capturedHeaderHeight = max(52, geometry.size.height - gridHeight - 250 + fullHeight * 0.06)
-            let emptyHeaderHeight = max(52, geometry.size.height - gridHeight - 250 - 32)
+            let emptyHeaderHeight = max(52, geometry.size.height - gridHeight - 250 - 32 - fullHeight * 0.05)
             VStack(alignment: .leading, spacing: 0) {
                 GeometryReader { header in
                     Group {
