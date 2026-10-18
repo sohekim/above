@@ -37,4 +37,4 @@ Run `swiftc Above/SkyGIFEncoder.swift Tests/SkyGIFEncoderChecks.swift -o /tmp/ab
 
 In Simulator, tap the above wordmark to select a sample sky, no sky, or actual saved data. This preview never changes stored photos. On iPhone, the app automatically uses today’s saved sky.
 
-The decorative black starburst appears only beside the caption in the no-sky layout. The captured-sky header is expanded a further 10% of its height.
+The decorative black starburst appears only beside the caption in the no-sky layout. The captured-sky header is expanded by 10% twice (21% cumulatively).
