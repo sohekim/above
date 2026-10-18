@@ -213,20 +213,20 @@ struct CalendarView: View {
                         Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
                     }.accessibilityLabel("Previous month")
                     Spacer()
-                    Button { month = Date() } label: { Text("Today").font(.system(size: 12)) }
+                    Button { month = Date() } label: { Text("Today").font(.system(size: 12, weight: .semibold)) }
                     Spacer()
                     Button { move(1) } label: {
                         Image(systemName: "arrow.right").frame(width: 44, height: 44, alignment: .trailing)
                     }.accessibilityLabel("Next month")
                 }.padding(.top, 12).padding(.bottom, 12)
                 skyGrid(photoSize: photoSize)
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 12) {
                     Text(month.formatted(.dateTime.month(.wide)).lowercased())
-                        .font(.system(size: 78, weight: .bold)).kerning(-4)
+                        .font(.system(size: 72, weight: .bold)).kerning(-3.5)
                         .minimumScaleFactor(0.45).lineLimit(1)
                         .padding(.trailing, 8)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .frame(height: 94, alignment: .bottomLeading)
+                        .frame(height: 86, alignment: .bottomLeading)
                         .accessibilityAddTraits(.isHeader)
                     HStack(alignment: .top, spacing: 16) {
                         Text(month.formatted(.dateTime.year()))
@@ -238,9 +238,9 @@ struct CalendarView: View {
                             .frame(width: 28, height: 28)
                             .accessibilityHidden(true)
                     }
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 15, weight: .bold))
                 }
-                .padding(.top, 22)
+                .padding(.top, 14)
                 .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 16).padding(.bottom, 22)
