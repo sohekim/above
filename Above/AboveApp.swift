@@ -3,7 +3,7 @@ import UIKit
 @preconcurrency import AVFoundation
 import ImageIO
 
-private let paper = Color(red: 0.97, green: 0.96, blue: 0.93)
+private let paper = Color(white: 0.98)
 
 struct SkyEntry: Codable, Identifiable {
     var id: String
@@ -218,7 +218,7 @@ struct CalendarView: View {
                         let todayImage = headerImage
                         ZStack(alignment: .topTrailing) {
                         ZStack {
-                            Color.white
+                            paper
                             if let todayImage {
                                 Image(uiImage: todayImage).resizable().scaledToFill()
                             }
@@ -293,7 +293,7 @@ struct CalendarView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 22)
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
-            .background(Color.white)
+            .background(paper)
         }
         .foregroundStyle(.black)
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { today = $0 }
