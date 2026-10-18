@@ -171,7 +171,33 @@ struct CalendarView: View {
     @State private var captureDate = Date()
     @State private var selected: SkyEntry?
     @State private var camera = false
+    @State private var today = Date()
+    #if targetEnvironment(simulator)
+    @State private var previewSky: Bool? = true
+    #endif
     private let calendar = Calendar.current
+    var headerImage: UIImage? {
+        #if targetEnvironment(simulator)
+        if let previewSky {
+            return previewSky ? Bundle.main.url(forResource: "blue", withExtension: "png", subdirectory: "DemoSkies").flatMap { UIImage(contentsOfFile: $0.path) } : nil
+        }
+        #endif
+        return store.entry(today).flatMap { store.image($0) }
+    }
+    var hasSky: Bool { headerImage != nil }
+    @ViewBuilder var wordmark: some View {
+        #if targetEnvironment(simulator)
+        Menu {
+            Button("오늘 하늘 있음 · 샘플") { previewSky = true }
+            Button("오늘 하늘 없음") { previewSky = false }
+            Button("실제 저장된 하늘") { previewSky = nil }
+        } label: {
+            Text("above").font(.custom("BradleyHandITCTT-Bold", size: 20)).tracking(-1)
+        }.accessibilityLabel("above, compare home versions")
+        #else
+        Text("above").font(.custom("BradleyHandITCTT-Bold", size: 20)).tracking(-1)
+        #endif
+    }
     var monthStart: Date { calendar.date(from: calendar.dateComponents([.year, .month], from: month))! }
     var days: [Date] {
         (calendar.range(of: .day, in: .month, for: month) ?? 1..<2).compactMap { calendar.date(byAdding: .day, value: $0 - 1, to: monthStart) }
@@ -183,8 +209,8 @@ struct CalendarView: View {
                                        (geometry.size.height - 290) / 6 - 4))
             VStack(alignment: .leading, spacing: 0) {
                 GeometryReader { header in
-                    TimelineView(.periodic(from: .now, by: 60)) { context in
-                        let todayImage = store.entry(context.date).flatMap { store.image($0) }
+                    Group {
+                        let todayImage = headerImage
                         ZStack(alignment: .topTrailing) {
                         ZStack {
                             Color(red: 0.82, green: 0.90, blue: 0.98)
@@ -197,8 +223,7 @@ struct CalendarView: View {
                         .clipped()
                         .offset(y: -geometry.safeAreaInsets.top)
                         .accessibilityLabel(todayImage == nil ? "Today’s sky, waiting to be captured" : "Today’s captured sky")
-                        Text("above")
-                            .font(.custom("BradleyHandITCTT-Bold", size: 20)).tracking(-1)
+                        wordmark
                             .foregroundStyle(todayImage == nil ? Color.black : Color.white)
                             .shadow(color: todayImage == nil ? .clear : .black.opacity(0.5), radius: 3, y: 1)
                             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -222,23 +247,22 @@ struct CalendarView: View {
                 skyGrid(photoSize: photoSize)
                 VStack(alignment: .leading, spacing: 12) {
                     Text(month.formatted(.dateTime.month(.wide)).lowercased())
-                        .font(.system(size: 72, weight: .bold)).kerning(-3.5)
+                        .font(.system(size: hasSky ? 72 : 78, weight: .bold)).kerning(hasSky ? -3.5 : -4)
                         .minimumScaleFactor(0.45).lineLimit(1)
                         .padding(.trailing, 8)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .frame(height: 86, alignment: .bottomLeading)
+                        .frame(height: 94, alignment: .bottomLeading)
                         .accessibilityAddTraits(.isHeader)
                     HStack(alignment: .top, spacing: 16) {
                         Text(month.formatted(.dateTime.year()))
                         Spacer(minLength: 4)
                         Text("a little sky to keep\nevery day.")
+                            .font(.system(size: hasSky ? 15 : 16, weight: hasSky ? .regular : .bold))
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
-                        EditorialStarburst().fill(.black)
-                            .frame(width: 28, height: 28)
-                            .accessibilityHidden(true)
                     }
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.system(size: hasSky ? 15 : 16, weight: .bold))
+                    .frame(height: 40, alignment: .top)
                 }
                 .padding(.top, 14)
                 .fixedSize(horizontal: false, vertical: true)
@@ -248,6 +272,7 @@ struct CalendarView: View {
             .background(Color.white)
         }
         .foregroundStyle(.black)
+        .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { today = $0 }
         .fullScreenCover(isPresented: $camera) { CameraView { url in store.saveGIF(url, on: captureDate) } }
         .fullScreenCover(item: $selected) { entry in
             NavigationStack {
@@ -268,7 +293,7 @@ struct CalendarView: View {
     func skyGrid(photoSize: CGFloat) -> some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 7), spacing: 4) {
             ForEach(Array(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].enumerated()), id: \.offset) { _, label in
-                Text(label).font(.system(size: 10, weight: .bold))
+                Text(label).font(.system(size: 10, weight: hasSky ? .medium : .bold))
                     .frame(maxWidth: .infinity, alignment: .center).padding(.bottom, 8)
             }
             ForEach(-offset..<0, id: \.self) { _ in Color.clear.frame(height: photoSize) }
@@ -299,22 +324,6 @@ struct CalendarView: View {
         }
     }
     func move(_ amount: Int) { month = calendar.date(byAdding: .month, value: amount, to: monthStart)! }
-}
-
-struct EditorialStarburst: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let radius = min(rect.width, rect.height) / 2
-        for index in 0..<24 {
-            let angle = Double(index) * .pi / 12 - .pi / 2
-            let r = radius * (index.isMultiple(of: 2) ? 1 : 0.48)
-            let point = CGPoint(x: center.x + cos(angle) * r, y: center.y + sin(angle) * r)
-            if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
-        }
-        path.closeSubpath()
-        return path
-    }
 }
 
 struct EntryView: View {
