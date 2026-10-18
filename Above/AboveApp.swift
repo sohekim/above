@@ -179,8 +179,8 @@ struct CalendarView: View {
     var offset: Int { (calendar.component(.weekday, from: monthStart) + 5) % 7 }
     var body: some View {
         GeometryReader { geometry in
-            let photoSize = max(20, min((geometry.size.width - 32) / 7,
-                                       (geometry.size.height - 290) / 6 - 5))
+            let photoSize = max(20, min((geometry.size.width - 56) / 7,
+                                       (geometry.size.height - 290) / 6 - 6))
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Spacer()
@@ -245,7 +245,7 @@ struct CalendarView: View {
         camera = true
     }
     func skyGrid(photoSize: CGFloat) -> some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 4) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 6) {
             ForEach(Array(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].enumerated()), id: \.offset) { _, label in
                 Text(label).font(.system(size: 10, weight: .bold))
                     .frame(maxWidth: .infinity, alignment: .center).padding(.bottom, 8)
