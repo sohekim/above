@@ -579,7 +579,7 @@ struct EntryView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     .padding(.top, max(32, (pageHeight - side) / 2 - 112))
-                    .id("note")
+                    Color.clear.frame(height: 40).id("note")
                 }
                 .padding(.horizontal, 28).padding(.top, 12).padding(.bottom, 24)
                 .frame(maxWidth: .infinity, minHeight: pageHeight, alignment: .top)
