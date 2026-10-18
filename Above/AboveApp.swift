@@ -526,6 +526,8 @@ struct EntryView: View {
     @State private var draft = ""
     @State private var restingHeight: CGFloat = 0
     @State private var noteFocused = false
+    @State private var poster: UIImage?
+    @State private var mediaURL: URL?
     var savedNote: String { store.entries.first(where: { $0.id == entry.id })?.note ?? "" }
     func saveNote() {
         store.update(entry.id, note: draft.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -535,6 +537,7 @@ struct EntryView: View {
         GeometryReader { geometry in
             let pageHeight = restingHeight > 0 ? restingHeight : geometry.size.height
             let side = max(0, min(geometry.size.width - 56, pageHeight * 0.48))
+            ScrollViewReader { scroll in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 24) {
@@ -559,7 +562,7 @@ struct EntryView: View {
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                     }
                 }.frame(height: 144, alignment: .top)
-                    SkyMediaView(poster: store.image(entry), gifURL: store.gifURL(entry))
+                    SkyMediaView(poster: poster, gifURL: mediaURL)
                         .frame(width: side, height: side).clipShape(Circle())
                         .frame(maxWidth: .infinity)
                         .accessibilityLabel(entry.isSample == true ? "Sample sky, AI-generated" : "Your sky photo")
@@ -576,18 +579,31 @@ struct EntryView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     .padding(.top, max(32, (pageHeight - side) / 2 - 112))
+                    .id("note")
                 }
                 .padding(.horizontal, 28).padding(.top, 12).padding(.bottom, 24)
                 .frame(maxWidth: .infinity, minHeight: pageHeight, alignment: .top)
             }
             .scrollDismissesKeyboard(.interactively)
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
+                guard noteFocused else { return }
+                let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.25
+                withAnimation(.easeOut(duration: duration)) {
+                    scroll.scrollTo("note", anchor: .bottom)
+                }
+            }
             .onAppear { restingHeight = geometry.size.height }
             .onChange(of: geometry.size.height) { _, height in
                 if !noteFocused && height > restingHeight { restingHeight = height }
             }
+            }
         }
         .background(paper).foregroundStyle(.black)
-        .onAppear { draft = savedNote }
+        .onAppear {
+            draft = savedNote
+            poster = store.image(entry)
+            mediaURL = store.gifURL(entry)
+        }
         .onChange(of: noteFocused) { wasFocused, isFocused in
             if wasFocused && !isFocused { saveNote() }
         }
