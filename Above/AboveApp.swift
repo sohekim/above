@@ -351,7 +351,7 @@ struct CalendarView: View {
                     Text(month.formatted(.dateTime.month(.abbreviated)).uppercased())
                         .font(.system(size: 140, weight: .black)).tracking(-9)
                         .minimumScaleFactor(0.5).lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
                 if blocks { Color.clear.frame(height: 16) }
                 else { Spacer(minLength: 12) }
@@ -382,9 +382,11 @@ struct CalendarView: View {
                     Button { move(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44, alignment: .leading) }
                         .accessibilityLabel("Previous month")
                     Spacer()
-                    Text(month.formatted(.dateTime.month(.wide)).lowercased())
-                        .font(.system(size: 12, weight: .medium))
-                    Spacer()
+                    if blocks {
+                        Text(month.formatted(.dateTime.month(.wide)).lowercased())
+                            .font(.system(size: 12, weight: .medium))
+                        Spacer()
+                    }
                     Button { move(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44, alignment: .trailing) }
                         .accessibilityLabel("Next month")
                 }.padding(.top, 18)
@@ -404,7 +406,7 @@ struct CalendarView: View {
                 if let entry = store.entry(day), let image = store.image(entry) {
                     Image(uiImage: image).resizable().scaledToFill()
                 }
-                if !blocks || store.entry(day) == nil {
+                if store.entry(day) == nil {
                 Text("\(calendar.component(.day, from: day))")
                     .font(.system(size: blocks ? 10 : 31, weight: .bold))
                     .foregroundStyle(blocks || store.entry(day) != nil ? .white : .black)
