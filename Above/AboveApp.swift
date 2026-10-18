@@ -361,7 +361,7 @@ struct CalendarView: View {
                             .frame(width: side)
                     }
                 }.padding(.bottom, blocks ? 8 : 12)
-                VStack(spacing: blocks ? 2 : 6) {
+                VStack(spacing: blocks ? 0 : 6) {
                     ForEach(0..<weekCount, id: \.self) { row in
                         HStack(spacing: 2) {
                             ForEach(0..<7, id: \.self) { column in
@@ -403,17 +403,17 @@ struct CalendarView: View {
             ZStack {
                 if let entry = store.entry(day), let image = store.image(entry) {
                     Image(uiImage: image).resizable().scaledToFill()
-                } else if blocks {
-                    Circle().fill(paper)
                 }
+                if !blocks || store.entry(day) == nil {
                 Text("\(calendar.component(.day, from: day))")
                     .font(.system(size: blocks ? 10 : 31, weight: .bold))
-                    .foregroundStyle(store.entry(day) != nil ? .white : .black)
+                    .foregroundStyle(blocks || store.entry(day) != nil ? .white : .black)
                     .shadow(color: store.entry(day) != nil ? .black.opacity(0.5) : .clear, radius: 2)
+                }
             }
-            .frame(width: side - (blocks ? 5 : 0), height: side - (blocks ? 5 : 0))
+            .frame(width: side - (blocks ? 1 : 0), height: side - (blocks ? 1 : 0))
             .clipShape(Circle())
-            .overlay { if calendar.isDateInToday(day) { Circle().stroke(blocks ? .white : .black, lineWidth: 1) } }
+            .overlay { if !blocks && calendar.isDateInToday(day) { Circle().stroke(blocks ? .white : .black, lineWidth: 1) } }
             .frame(width: side, height: side)
         }
         .buttonStyle(.plain)
