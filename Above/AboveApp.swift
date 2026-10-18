@@ -683,6 +683,10 @@ struct InlineNoteInput: UIViewRepresentable {
     private let queue = DispatchQueue(label: "above.camera")
     private var cancelled = false
     private var conversion: Task<Void, Never>?
+    private var clips: [URL] = []
+    private var recordedSeconds: Double = 0
+    @Published var paused = false
+    @Published var finishingSegment = false
     @Published var ready = false
     @Published var recording = false
     @Published var processing = false
@@ -732,6 +736,8 @@ struct InlineNoteInput: UIViewRepresentable {
         cancelled = true
         ready = false
         conversion?.cancel()
+        clips.forEach { try? FileManager.default.removeItem(at: $0) }
+        clips.removeAll()
         if output.isRecording { output.stopRecording() }
         let session = session
         queue.async { if session.isRunning { session.stopRunning() } }
@@ -741,18 +747,40 @@ struct InlineNoteInput: UIViewRepresentable {
         message = "That moment was interrupted. Tap the sky to start again."
         cancelled = true
         conversion?.cancel()
+        clips.forEach { try? FileManager.default.removeItem(at: $0) }
+        clips.removeAll()
         if output.isRecording { output.stopRecording() }
         startedAt = nil
+        recording = false
+        paused = false
+        finishingSegment = false
+    }
+    func elapsed(at date: Date) -> Double {
+        recordedSeconds + (startedAt.map { date.timeIntervalSince($0) } ?? 0)
     }
     func record() {
-        guard ready, !recording, !processing else { return }
+        guard ready, !processing, !finishingSegment else { return }
+        if recording && !paused {
+            paused = true
+            finishingSegment = true
+            startedAt = nil
+                output.stopRecording()
+            return
+        }
+        if !recording {
+            clips.forEach { try? FileManager.default.removeItem(at: $0) }
+            clips.removeAll()
+            recordedSeconds = 0
+        }
         cancelled = false
         message = nil
         recording = true
+        paused = false
+        finishingSegment = true
         startedAt = nil
+        output.maxRecordedDuration = CMTime(seconds: max(0.1, SkyGIFEncoder.duration - recordedSeconds), preferredTimescale: 600)
         if let connection = output.connection(with: .video), connection.isVideoRotationAngleSupported(90) {
             connection.videoRotationAngle = 90
-            // Keep the live viewfinder and saved movie framing consistent.
             connection.preferredVideoStabilizationMode = .off
         }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mov")
@@ -761,27 +789,43 @@ struct InlineNoteInput: UIViewRepresentable {
     nonisolated func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
         Task { @MainActor in
             if self.cancelled { self.output.stopRecording() }
-            else { self.startedAt = Date() }
+            else {
+                self.startedAt = Date()
+                self.finishingSegment = false
+            }
         }
     }
     nonisolated func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo url: URL, from connections: [AVCaptureConnection], error: Error?) {
         let completed = error == nil || (error as NSError?)?.userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool == true
         Task { @MainActor in
-            self.recording = false
+            self.finishingSegment = true
+            defer { self.finishingSegment = false }
             guard !self.cancelled else { try? FileManager.default.removeItem(at: url); return }
             guard completed else {
+                self.recording = false
+                self.paused = false
                 self.message = "The recording couldn’t finish. Tap the sky to try again."
                 try? FileManager.default.removeItem(at: url)
                 return
             }
+            self.clips.append(url)
+            let length = (try? await AVURLAsset(url: url).load(.duration).seconds) ?? 0
+            guard !self.cancelled else { return }
+            self.recordedSeconds += length
+            self.startedAt = nil
+            if self.paused && self.recordedSeconds < SkyGIFEncoder.duration - 0.1 { return }
+            self.recording = false
+            self.paused = false
             self.processing = true
+            let capturedClips = self.clips
+            self.clips.removeAll()
             self.conversion = Task {
                 defer {
                     self.processing = false
-                    try? FileManager.default.removeItem(at: url)
+                    capturedClips.forEach { try? FileManager.default.removeItem(at: $0) }
                 }
                 do {
-                    let gif = try await SkyGIFEncoder.encode(movieURL: url)
+                    let gif = try await SkyGIFEncoder.encode(movieURLs: capturedClips)
                     defer { try? FileManager.default.removeItem(at: gif) }
                     guard !Task.isCancelled, !self.cancelled else { return }
                     self.onCapture?(gif)
@@ -853,7 +897,7 @@ struct CameraView: View {
     let onCapture: (URL) -> Bool
     var body: some View {
         GeometryReader { geometry in
-            let side = max(0, min(geometry.size.width - 72, geometry.size.height * 0.48))
+            let side = max(0, min(geometry.size.width - 40, geometry.size.height * 0.65))
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Button { camera.stop(); dismiss() } label: {
@@ -871,6 +915,9 @@ struct CameraView: View {
                         if let message = camera.message {
                             Text(message).font(.system(size: 15)).multilineTextAlignment(.center)
                                 .padding(30).background(paper.opacity(0.92), in: Circle())
+                        } else if camera.paused {
+                            Image(systemName: "pause.fill").font(.system(size: 28, weight: .medium))
+                                .foregroundStyle(.white).shadow(radius: 4)
                         } else if !camera.recording && !camera.processing {
                             Text("tap to keep a little sky")
                                 .font(.system(size: 20, weight: .medium))
@@ -882,8 +929,8 @@ struct CameraView: View {
                     }
                     .frame(width: side, height: side)
                     .overlay {
-                        TimelineView(.animation(paused: !camera.recording)) { context in
-                            let elapsed = camera.startedAt.map { context.date.timeIntervalSince($0) } ?? 0
+                        TimelineView(.animation(paused: !camera.recording || camera.paused)) { context in
+                            let elapsed = camera.elapsed(at: context.date)
                             let progress = camera.processing ? 1 : min(1, max(0, elapsed / SkyGIFEncoder.duration))
                             ZStack {
                                 Circle().stroke(.black.opacity(0.15), lineWidth: 2)
@@ -895,9 +942,9 @@ struct CameraView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .disabled(!camera.ready || camera.recording || camera.processing)
-                .accessibilityLabel(camera.recording ? "Recording ten seconds of sky" : "Record sky for ten seconds")
-                .accessibilityHint("Tap the sky circle to begin. The recording ends automatically.")
+                .disabled(!camera.ready || camera.processing || camera.finishingSegment)
+                .accessibilityLabel(camera.paused ? "Resume sky recording" : camera.recording ? "Pause sky recording" : "Record sky for ten seconds")
+                .accessibilityHint("Tap to begin, pause, or resume. Ten seconds of recorded sky are saved automatically.")
                 .frame(maxWidth: .infinity)
                 Spacer(minLength: 24)
             }

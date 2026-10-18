@@ -49,3 +49,5 @@ Poster centers the oversized month abbreviation, shows recorded skies without da
 The visible selector is Month v1 / Month v2 / Year / Poster. Month v1 always uses the layout without a sky header; Month v2 always uses the sky-header layout. Blocks is no longer offered.
 
 Month v2 uses a bold uppercase 24-point month-and-year heading, bold weekday labels, and semibold navigation chevrons to match the other editorial layouts.
+
+The camera circle fills more of the screen width. Tap during recording to pause; tap again to resume. Only captured time counts toward ten seconds. Paused segments are joined for GIF generation, excluding the pause.

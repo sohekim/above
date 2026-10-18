@@ -10,8 +10,29 @@ enum SkyGIFEncoder {
     static let framesPerSecond = 5
     static let dimension = 480
 
+    static func encode(movieURLs: [URL]) async throws -> URL {
+        let composition = AVMutableComposition()
+        guard let track = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        var cursor = CMTime.zero
+        for url in movieURLs {
+            try Task.checkCancellation()
+            let asset = AVURLAsset(url: url)
+            guard let source = try await asset.loadTracks(withMediaType: .video).first else { continue }
+            let duration = try await asset.load(.duration)
+            try track.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: source, at: cursor)
+            if cursor == .zero { track.preferredTransform = try await source.load(.preferredTransform) }
+            cursor = cursor + duration
+        }
+        return try await encode(asset: composition)
+    }
+
     static func encode(movieURL: URL) async throws -> URL {
-        let asset = AVURLAsset(url: movieURL)
+        try await encode(asset: AVURLAsset(url: movieURL))
+    }
+
+    private static func encode(asset: AVAsset) async throws -> URL {
         let duration = try await asset.load(.duration).seconds
         guard duration >= 9.5 else {
             throw NSError(domain: "Above.Capture", code: 1,
