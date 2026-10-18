@@ -579,7 +579,7 @@ struct EntryView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     .padding(.top, max(32, (pageHeight - side) / 2 - 112))
-                    Color.clear.frame(height: 40).id("note")
+                    Color.clear.frame(height: 88).id("note")
                 }
                 .padding(.horizontal, 28).padding(.top, 12).padding(.bottom, 24)
                 .frame(maxWidth: .infinity, minHeight: pageHeight, alignment: .top)
@@ -594,7 +594,15 @@ struct EntryView: View {
             }
             .onAppear { restingHeight = geometry.size.height }
             .onChange(of: geometry.size.height) { _, height in
-                if !noteFocused && height > restingHeight { restingHeight = height }
+                if noteFocused && height < restingHeight {
+                    // Reposition only after the keyboard has reduced the viewport;
+                    // scrolling before that point is clamped to the old bounds.
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        scroll.scrollTo("note", anchor: .bottom)
+                    }
+                } else if !noteFocused && height > restingHeight {
+                    restingHeight = height
+                }
             }
             }
         }
