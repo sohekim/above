@@ -603,6 +603,13 @@ struct CameraView: View {
                         if let message = camera.message {
                             Text(message).font(.system(size: 15)).multilineTextAlignment(.center)
                                 .padding(30).background(paper.opacity(0.92), in: Circle())
+                        } else if !camera.recording && !camera.processing {
+                            Text("tap to keep a little sky")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundStyle(.white)
+                                .shadow(color: .black.opacity(0.6), radius: 5, y: 1)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
                         }
                     }
                     .frame(width: side, height: side)
@@ -624,12 +631,6 @@ struct CameraView: View {
                 .accessibilityLabel(camera.recording ? "Recording ten seconds of sky" : "Record sky for ten seconds")
                 .accessibilityHint("Tap the sky circle to begin. The recording ends automatically.")
                 .frame(maxWidth: .infinity)
-                Spacer(minLength: 20)
-                VStack(spacing: 10) {
-                    Text("Take a moment to look up.").font(.system(size: 15))
-                    Text(camera.processing ? "Keeping your sky…" : camera.recording ? "Stay here. Just ten seconds." : "Tap the sky. Stay for ten seconds.")
-                        .font(.system(size: 12)).foregroundStyle(.secondary)
-                }.frame(maxWidth: .infinity).accessibilityElement(children: .combine)
                 Spacer(minLength: 24)
             }
             .padding(.horizontal, 28).padding(.top, 12)

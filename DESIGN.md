@@ -12,7 +12,7 @@ Circular sky thumbnails on daily dates. The current empty day has a thin outline
 
 ## Camera
 
-The plus and Look up open the camera directly. The circular live viewfinder is the recording button. Tapping it records ten seconds, with a monochrome progress ring around the circle and no separate shutter. The recording becomes a silent looping GIF. Arrow-only Back control cancels incomplete capture. The only editorial caption is “Take a moment to look up.” No photo-library import. Capture uses a centered square crop displayed through a circular mask. The diary loops the GIF and calendar thumbnails remain still.
+The plus and Look up open the camera directly. The circular live viewfinder is the recording button. Tapping it records ten seconds, with a monochrome progress ring around the circle and no separate shutter. The recording becomes a silent looping GIF. Arrow-only Back control cancels incomplete capture. Before recording, the circle contains “tap to keep a little sky”. The caption disappears during recording, leaving the progress ring. There is no text below the circle. No photo-library import. Capture uses a centered square crop displayed through a circular mask. The diary loops the GIF and calendar thumbnails remain still.
 
 ## Diary detail
 
