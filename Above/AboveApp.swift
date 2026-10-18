@@ -169,7 +169,7 @@ struct CalendarView: View {
     @EnvironmentObject var store: SkyStore
     @State private var month = Date()
     @State private var yearView = false
-    @State private var calendarStyle = "Month"
+    @State private var calendarStyle = "Month v2"
     @State private var captureDate = Date()
     @State private var selected: SkyEntry?
     @State private var camera = false
@@ -186,7 +186,7 @@ struct CalendarView: View {
         #endif
         return store.entry(today).flatMap { store.image($0) }
     }
-    var hasSky: Bool { headerImage != nil }
+    var hasSky: Bool { calendarStyle == "Month v2" }
     @ViewBuilder var wordmark: some View {
         #if targetEnvironment(simulator)
         Menu {
@@ -209,8 +209,8 @@ struct CalendarView: View {
         Group {
         if yearView {
             yearlyCalendar
-        } else if calendarStyle != "Month" {
-            graphicCalendar(blocks: calendarStyle == "Blocks")
+        } else if calendarStyle == "Poster" {
+            graphicCalendar(blocks: false)
         } else {
         GeometryReader { geometry in
             let photoSize = max(20, min((geometry.size.width - 50) / 7,
@@ -223,7 +223,7 @@ struct CalendarView: View {
             VStack(alignment: .leading, spacing: 0) {
                 GeometryReader { header in
                     Group {
-                        let todayImage = headerImage
+                        let todayImage = hasSky ? headerImage : nil
                         ZStack(alignment: .topTrailing) {
                         ZStack {
                             paper
@@ -307,7 +307,7 @@ struct CalendarView: View {
         }
         .overlay(alignment: .topLeading) {
             HStack(spacing: 14) {
-                ForEach(["Month", "Year", "Blocks", "Poster"], id: \.self) { option in
+                ForEach(["Month v1", "Month v2", "Year", "Poster"], id: \.self) { option in
                     Button {
                         yearView = option == "Year"
                         calendarStyle = option
@@ -319,7 +319,7 @@ struct CalendarView: View {
                 }
             }
             .font(.system(size: 12))
-            .foregroundStyle(calendarStyle == "Month" && hasSky ? .white : .black)
+            .foregroundStyle(hasSky && headerImage != nil ? .white : .black)
             .padding(.leading, 16).padding(.top, 16)
         }
         .foregroundStyle(.black)

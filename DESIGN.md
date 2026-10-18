@@ -45,3 +45,5 @@ Month / Year controls switch between the existing monthly layout and a scrollabl
 Two additional monthly styles are available from the top selector: Blocks uses an oversized month number with touching black capsule week rows with plain light date numerals for empty days and tightly spaced sky circles without numerals for recorded days; Poster uses an oversized month abbreviation, a ruled month/year header, and bold date numerals. Saved days show sky photos in both styles; navigation and diary/capture actions use the same stored entries. All styles retain the neutral off-white background.
 
 Poster centers the oversized month abbreviation, shows recorded skies without date numerals, and keeps only navigation arrows in the bottom row.
+
+The visible selector is Month v1 / Month v2 / Year / Poster. Month v1 always uses the layout without a sky header; Month v2 always uses the sky-header layout. Blocks is no longer offered.
