@@ -155,7 +155,7 @@ struct WelcomeView: View {
         GeometryReader { geometry in
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    AboveWordmark(height: 26)
+                    Text("LookUp").font(.system(size: 12, weight: .semibold))
                     Spacer()
                     Button("Skip") { onContinue() }.font(.system(size: 15))
                 }
