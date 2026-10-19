@@ -444,7 +444,7 @@ struct CalendarView: View {
                     .accessibilityLabel("Previous year")
                 Button { moveYear(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
                     .accessibilityLabel("Next year")
-            }.padding(.top, 8)
+            }.padding(.top, 8).offset(y: 14)
                 Spacer(minLength: 0)
                 YearFlowLayout(spacing: 1) {
                     ForEach(1...12, id: \.self) { number in
@@ -918,7 +918,7 @@ struct CameraView: View {
                         Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
                     }.accessibilityLabel("Back")
                     Spacer()
-                    AboveWordmark(height: 26)
+                    Text("Above").font(.system(size: 12, weight: .semibold))
                 }
                 Spacer(minLength: 20)
                 Button { camera.record() } label: {
