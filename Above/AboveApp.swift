@@ -194,10 +194,10 @@ struct CalendarView: View {
             Button("오늘 하늘 없음") { previewSky = false }
             Button("실제 저장된 하늘") { previewSky = nil }
         } label: {
-            AboveWordmark(height: 12)
+            Text("above").font(.system(size: 12, weight: .semibold))
         }.accessibilityLabel("above, compare home versions")
         #else
-        AboveWordmark(height: 12)
+        Text("above").font(.system(size: 12, weight: .semibold))
         #endif
     }
     var monthStart: Date { calendar.date(from: calendar.dateComponents([.year, .month], from: month))! }
