@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreText
 import UIKit
 @preconcurrency import AVFoundation
 import ImageIO
@@ -112,6 +113,11 @@ struct SkyEntry: Codable, Identifiable {
 }
 
 @main struct AboveApp: App {
+    init() {
+        if let url = Bundle.main.url(forResource: "PixelifySans", withExtension: "ttf", subdirectory: "Fonts") {
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+        }
+    }
     @StateObject private var store = SkyStore()
     var body: some Scene {
         WindowGroup { AboveRootView().environmentObject(store).preferredColorScheme(.light) }
@@ -1019,61 +1025,8 @@ struct YearFlowLayout: Layout {
 struct AboveWordmark: View {
     var height: CGFloat = 20
     var body: some View {
-        AboveRoundedLetters()
-            .stroke(style: StrokeStyle(lineWidth: height * 0.75 / 7, lineCap: .round, lineJoin: .round))
-            .frame(width: height * 29 / 7, height: height)
+        Text("above")
+            .font(.custom("PixelifySans-Regular", fixedSize: height))
             .accessibilityLabel("above")
-    }
-}
-
-struct AboveRoundedLetters: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let unit = min(rect.width / 29, rect.height / 7)
-        func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + x * unit, y: rect.minY + y * unit)
-        }
-        // Continuous strokes keep rounded steps joined without a dotted texture.
-        path.move(to: point(0.7, 2.6))
-        path.addLine(to: point(3.3, 2.6))
-        path.addQuadCurve(to: point(4.3, 3.6), control: point(4.3, 2.6))
-        path.addLine(to: point(4.3, 6.3))
-        path.addLine(to: point(1.3, 6.3))
-        path.addQuadCurve(to: point(0.5, 5.5), control: point(0.5, 6.3))
-        path.addQuadCurve(to: point(1.3, 4.6), control: point(0.5, 4.6))
-        path.addLine(to: point(4.3, 4.6))
-        path.move(to: point(6.5, 0.5))
-        path.addLine(to: point(6.5, 6.3))
-        path.addLine(to: point(9.3, 6.3))
-        path.addQuadCurve(to: point(10.3, 5.3), control: point(10.3, 6.3))
-        path.addLine(to: point(10.3, 3.6))
-        path.addQuadCurve(to: point(9.3, 2.6), control: point(10.3, 2.6))
-        path.addLine(to: point(6.5, 2.6))
-        path.move(to: point(13.4, 2.6))
-        path.addLine(to: point(15.3, 2.6))
-        path.addQuadCurve(to: point(16.3, 3.6), control: point(16.3, 2.6))
-        path.addLine(to: point(16.3, 5.3))
-        path.addQuadCurve(to: point(15.3, 6.3), control: point(16.3, 6.3))
-        path.addLine(to: point(13.4, 6.3))
-        path.addQuadCurve(to: point(12.5, 5.3), control: point(12.5, 6.3))
-        path.addLine(to: point(12.5, 3.6))
-        path.addQuadCurve(to: point(13.4, 2.6), control: point(12.5, 2.6))
-        path.move(to: point(18.5, 2.6))
-        path.addLine(to: point(18.5, 4.3))
-        path.addQuadCurve(to: point(19.1, 5.3), control: point(18.5, 4.9))
-        path.addLine(to: point(20.4, 6.3))
-        path.addLine(to: point(21.7, 5.3))
-        path.addQuadCurve(to: point(22.3, 4.3), control: point(22.3, 4.9))
-        path.addLine(to: point(22.3, 2.6))
-        path.move(to: point(24.5, 4.5))
-        path.addLine(to: point(28.3, 4.5))
-        path.addLine(to: point(28.3, 3.6))
-        path.addQuadCurve(to: point(27.3, 2.6), control: point(28.3, 2.6))
-        path.addLine(to: point(25.5, 2.6))
-        path.addQuadCurve(to: point(24.5, 3.6), control: point(24.5, 2.6))
-        path.addLine(to: point(24.5, 5.3))
-        path.addQuadCurve(to: point(25.5, 6.3), control: point(24.5, 6.3))
-        path.addLine(to: point(28.3, 6.3))
-        return path
     }
 }
