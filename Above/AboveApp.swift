@@ -194,10 +194,10 @@ struct CalendarView: View {
             Button("오늘 하늘 없음") { previewSky = false }
             Button("실제 저장된 하늘") { previewSky = nil }
         } label: {
-            Text("above").font(.system(size: 12, weight: .semibold))
+            Text("Above").font(.system(size: 12, weight: .semibold))
         }.accessibilityLabel("above, compare home versions")
         #else
-        Text("above").font(.system(size: 12, weight: .semibold))
+        Text("Above").font(.system(size: 12, weight: .semibold))
         #endif
     }
     var monthStart: Date { calendar.date(from: calendar.dateComponents([.year, .month], from: month))! }
@@ -1018,9 +1018,9 @@ struct YearFlowLayout: Layout {
 struct AboveWordmark: View {
     var height: CGFloat = 20
     var body: some View {
-        Text("above")
+        Text("Above")
             .font(.system(size: height, weight: .regular))
             .tracking(-height * 2 / 85)
-            .accessibilityLabel("above")
+            .accessibilityLabel("Above")
     }
 }
