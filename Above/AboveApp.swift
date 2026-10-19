@@ -168,8 +168,8 @@ struct WelcomeView: View {
 struct CalendarView: View {
     @EnvironmentObject var store: SkyStore
     @State private var month = Date()
-    @State private var yearView = false
-    @State private var calendarStyle = "Month v2"
+    @State private var yearView = true
+    @State private var calendarStyle = "Year"
     @State private var captureDate = Date()
     @State private var selected: SkyEntry?
     @State private var camera = false
@@ -307,7 +307,8 @@ struct CalendarView: View {
         }
         .overlay(alignment: .topLeading) {
             HStack(spacing: 14) {
-                ForEach(["Month v1", "Month v2", "Year", "Poster"], id: \.self) { option in
+                // Monthly layouts remain implemented for future comparison.
+                ForEach(["Year", "Poster"], id: \.self) { option in
                     Button {
                         yearView = option == "Year"
                         calendarStyle = option
