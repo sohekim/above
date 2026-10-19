@@ -10,6 +10,7 @@
 		A00000000000000000000016 /* AboveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000013 /* AboveApp.swift */; };
 		A00000000000000000000019 /* DemoSkies in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000018 /* DemoSkies */; };
 		A00000000000000000000021 /* SkyGIFEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000020 /* SkyGIFEncoder.swift */; };
+		A00000000000000000000025 /* Assets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000024 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -17,6 +18,7 @@
 		A00000000000000000000013 /* AboveApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboveApp.swift; sourceTree = "<group>"; };
 		A00000000000000000000018 /* DemoSkies */ = {isa = PBXFileReference; lastKnownFileType = folder; path = DemoSkies; sourceTree = "<group>"; };
 		A00000000000000000000020 /* SkyGIFEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyGIFEncoder.swift; sourceTree = "<group>"; };
+		A00000000000000000000024 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -52,6 +54,7 @@
 				A00000000000000000000020 /* SkyGIFEncoder.swift */,
 				A00000000000000000000013 /* AboveApp.swift */,
 				A00000000000000000000018 /* DemoSkies */,
+				A00000000000000000000024 /* Assets.xcassets */,
 			);
 			path = Above;
 			sourceTree = "<group>";
@@ -107,6 +110,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A00000000000000000000019 /* DemoSkies in Resources */,
+				A00000000000000000000025 /* Assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -147,6 +151,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = TJ7Z9ACXT8;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -169,6 +174,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = TJ7Z9ACXT8;
 				GENERATE_INFOPLIST_FILE = YES;
