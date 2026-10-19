@@ -434,6 +434,7 @@ struct CalendarView: View {
                 Button { moveYear(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
                     .accessibilityLabel("Next year")
             }.padding(.top, 8)
+                Spacer(minLength: 0)
                 YearFlowLayout(spacing: 1) {
                     ForEach(1...12, id: \.self) { number in
                         let start = calendar.date(from: DateComponents(year: calendar.component(.year, from: month), month: number, day: 1))!
