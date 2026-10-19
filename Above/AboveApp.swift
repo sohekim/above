@@ -701,7 +701,7 @@ struct EntryView: View {
                         .padding(.top, max(24, (pageHeight - side) / 2 - 156))
                     ZStack(alignment: .topLeading) {
                         if draft.isEmpty {
-                            Text("A few words about this sky…")
+                            Text("leave a little thought…")
                                 .font(.system(size: 21)).foregroundStyle(.tertiary)
                                 .padding(.top, 8).allowsHitTesting(false)
                         }
