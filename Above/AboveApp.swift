@@ -135,7 +135,7 @@ struct WelcomeView: View {
         GeometryReader { geometry in
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text("above").font(.system(size: 26, weight: .medium)).tracking(-0.6)
+                    AboveWordmark(height: 26)
                     Spacer()
                     Button("Skip") { onContinue() }.font(.system(size: 15))
                 }
@@ -194,10 +194,10 @@ struct CalendarView: View {
             Button("오늘 하늘 없음") { previewSky = false }
             Button("실제 저장된 하늘") { previewSky = nil }
         } label: {
-            Text("above").font(.system(size: 20, weight: .medium)).tracking(-0.6)
+            AboveWordmark(height: 20)
         }.accessibilityLabel("above, compare home versions")
         #else
-        Text("above").font(.system(size: 20, weight: .medium)).tracking(-0.6)
+        AboveWordmark(height: 20)
         #endif
     }
     var monthStart: Date { calendar.date(from: calendar.dateComponents([.year, .month], from: month))! }
@@ -908,7 +908,7 @@ struct CameraView: View {
                         Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
                     }.accessibilityLabel("Back")
                     Spacer()
-                    Text("above").font(.system(size: 26, weight: .medium)).tracking(-0.6)
+                    AboveWordmark(height: 26)
                 }
                 Spacer(minLength: 20)
                 Button { camera.record() } label: {
@@ -1013,5 +1013,40 @@ struct YearFlowLayout: Layout {
         for (index, view) in subviews.enumerated() {
             view.place(at: CGPoint(x: bounds.minX + points[index].x, y: bounds.minY + points[index].y), anchor: .topLeading, proposal: .unspecified)
         }
+    }
+}
+
+/// A compact, stepped wordmark with softly rounded pixel strokes.
+struct AboveWordmark: View {
+    var height: CGFloat = 20
+    var body: some View {
+        AbovePixelLetters().fill()
+            .overlay { AbovePixelLetters().stroke(style: StrokeStyle(lineWidth: height / 45, lineJoin: .round)) }
+            .frame(width: height * 29 / 7, height: height)
+            .accessibilityLabel("above")
+    }
+}
+
+struct AbovePixelLetters: Shape {
+    private let letters = [
+        ["00000", "00000", "01110", "00001", "01111", "10001", "01111"],
+        ["10000", "10000", "11110", "10001", "10001", "10001", "11110"],
+        ["00000", "00000", "01110", "10001", "10001", "10001", "01110"],
+        ["00000", "00000", "10001", "10001", "10001", "01010", "00100"],
+        ["00000", "00000", "01110", "10001", "11111", "10000", "01111"]
+    ]
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let unit = min(rect.width / 29, rect.height / 7)
+        for (letterIndex, rows) in letters.enumerated() {
+            for (y, row) in rows.enumerated() {
+                for (x, pixel) in row.enumerated() where pixel == "1" {
+                    let box = CGRect(x: rect.minX + CGFloat(letterIndex * 6 + x) * unit,
+                                     y: rect.minY + CGFloat(y) * unit, width: unit, height: unit)
+                    path.addRect(box)
+                }
+            }
+        }
+        return path
     }
 }
