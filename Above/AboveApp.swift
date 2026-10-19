@@ -176,31 +176,13 @@ struct CalendarView: View {
     @State private var selected: SkyEntry?
     @State private var camera = false
     @State private var today = Date()
-    #if targetEnvironment(simulator)
-    @State private var previewSky: Bool? = true
-    #endif
     private let calendar = Calendar.current
     var headerImage: UIImage? {
-        #if targetEnvironment(simulator)
-        if let previewSky {
-            return previewSky ? Bundle.main.url(forResource: "blue", withExtension: "png", subdirectory: "DemoSkies").flatMap { UIImage(contentsOfFile: $0.path) } : nil
-        }
-        #endif
-        return store.entry(today).flatMap { store.image($0) }
+        store.entry(today).flatMap { store.image($0) }
     }
     var hasSky: Bool { calendarStyle == "Month v2" }
-    @ViewBuilder var wordmark: some View {
-        #if targetEnvironment(simulator)
-        Menu {
-            Button("오늘 하늘 있음 · 샘플") { previewSky = true }
-            Button("오늘 하늘 없음") { previewSky = false }
-            Button("실제 저장된 하늘") { previewSky = nil }
-        } label: {
-            Text("Above").font(.system(size: 12, weight: .semibold))
-        }.accessibilityLabel("above, compare home versions")
-        #else
+    var wordmark: some View {
         Text("Above").font(.system(size: 12, weight: .semibold))
-        #endif
     }
     var monthStart: Date { calendar.date(from: calendar.dateComponents([.year, .month], from: month))! }
     var days: [Date] {
