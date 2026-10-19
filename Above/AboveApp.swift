@@ -1027,6 +1027,73 @@ struct AboveWordmark: View {
     var body: some View {
         Text("above")
             .font(.custom("PixelifySans-Regular", fixedSize: height))
+            .hidden()
+            .overlay { RoundedPixelWordmark().fill() }
             .accessibilityLabel("above")
+    }
+}
+
+/// Round the font's outline corners without widening its strokes.
+struct RoundedPixelWordmark: Shape {
+    func path(in rect: CGRect) -> Path {
+        let font = CTFontCreateWithName("PixelifySans-Regular" as CFString, 100, nil)
+        let line = CTLineCreateWithAttributedString(NSAttributedString(string: "above", attributes: [kCTFontAttributeName as NSAttributedString.Key: font]))
+        let outline = CGMutablePath()
+        for run in CTLineGetGlyphRuns(line) as! [CTRun] {
+            let count = CTRunGetGlyphCount(run)
+            var glyphs = [CGGlyph](repeating: 0, count: count)
+            var positions = [CGPoint](repeating: .zero, count: count)
+            CTRunGetGlyphs(run, CFRange(location: 0, length: 0), &glyphs)
+            CTRunGetPositions(run, CFRange(location: 0, length: 0), &positions)
+            for index in 0..<count {
+                if let glyph = CTFontCreatePathForGlyph(font, glyphs[index], nil) {
+                    outline.addPath(glyph, transform: CGAffineTransform(translationX: positions[index].x, y: positions[index].y))
+                }
+            }
+        }
+        let bounds = outline.boundingBoxOfPath
+        guard bounds.width > 0, bounds.height > 0 else { return Path() }
+        let scale = min(rect.width / bounds.width, rect.height / bounds.height)
+        var contours: [[CGPoint]] = []
+        var points: [CGPoint] = []
+        func converted(_ point: CGPoint) -> CGPoint {
+            CGPoint(x: rect.midX + (point.x - bounds.midX) * scale,
+                    y: rect.midY - (point.y - bounds.midY) * scale)
+        }
+        outline.applyWithBlock { element in
+            switch element.pointee.type {
+            case .moveToPoint:
+                if !points.isEmpty { contours.append(points) }
+                points = [converted(element.pointee.points[0])]
+            case .addLineToPoint: points.append(converted(element.pointee.points[0]))
+            case .closeSubpath:
+                if !points.isEmpty { contours.append(points); points = [] }
+            default: break
+            }
+        }
+        if !points.isEmpty { contours.append(points) }
+        var result = Path()
+        let radius = rect.height * 0.025
+        for var contour in contours {
+            if contour.first == contour.last { contour.removeLast() }
+            guard contour.count > 2 else { continue }
+            for index in contour.indices {
+                let previous = contour[(index + contour.count - 1) % contour.count]
+                let point = contour[index]
+                let next = contour[(index + 1) % contour.count]
+                let incoming = hypot(point.x - previous.x, point.y - previous.y)
+                let outgoing = hypot(next.x - point.x, next.y - point.y)
+                guard incoming > 0, outgoing > 0 else { continue }
+                let inset = min(radius, min(incoming, outgoing) / 2)
+                let entry = CGPoint(x: point.x + (previous.x - point.x) * inset / incoming,
+                                    y: point.y + (previous.y - point.y) * inset / incoming)
+                let exit = CGPoint(x: point.x + (next.x - point.x) * inset / outgoing,
+                                   y: point.y + (next.y - point.y) * inset / outgoing)
+                if index == 0 { result.move(to: entry) } else { result.addLine(to: entry) }
+                result.addQuadCurve(to: exit, control: point)
+            }
+            result.closeSubpath()
+        }
+        return result
     }
 }
