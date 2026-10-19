@@ -340,17 +340,26 @@ struct CalendarView: View {
                 Color.clear.frame(height: 26).padding(.top, 46)
                 HStack {
                     Text(month.formatted(.dateTime.month(.twoDigits)))
-                        .font(.system(size: blocks ? 110 : 48, weight: .black)).tracking(-5)
+                        .font(.system(size: blocks ? 110 : 48, weight: blocks ? .black : .bold)).tracking(blocks ? -5 : -2)
                     Spacer()
                     Text("’" + String(calendar.component(.year, from: month) % 100))
                         .font(.system(size: blocks ? 24 : 48, weight: .bold)).tracking(-2)
                 }.padding(.top, 18)
                 if !blocks {
                     Rectangle().frame(height: 1).padding(.vertical, 12)
-                    Text(month.formatted(.dateTime.month(.abbreviated)).uppercased())
-                        .font(.system(size: 140, weight: .black)).tracking(-9)
-                        .minimumScaleFactor(0.5).lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                    HStack(spacing: 12) {
+                        Button { move(-1) } label: {
+                            Image(systemName: "chevron.left").frame(width: 44, height: 44, alignment: .leading)
+                        }.accessibilityLabel("Previous month")
+                        Text(month.formatted(.dateTime.month(.abbreviated)).uppercased())
+                            .font(.system(size: 140, weight: .semibold)).tracking(-6)
+                            .minimumScaleFactor(0.5).lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                        Button { move(1) } label: {
+                            Image(systemName: "chevron.right").frame(width: 44, height: 44, alignment: .trailing)
+                        }.accessibilityLabel("Next month")
+                    }
+
                 }
                 if blocks { Color.clear.frame(height: 16) }
                 else { Spacer(minLength: 12) }
@@ -377,6 +386,7 @@ struct CalendarView: View {
                         }
                     }
                 }
+                if blocks {
                 HStack {
                     Button { move(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44, alignment: .leading) }
                         .accessibilityLabel("Previous month")
@@ -389,6 +399,7 @@ struct CalendarView: View {
                     Button { move(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44, alignment: .trailing) }
                         .accessibilityLabel("Next month")
                 }.padding(.top, 18)
+                }
                 if blocks { Spacer(minLength: 0) }
             }
             .padding(.horizontal, 16).padding(.bottom, 18)
