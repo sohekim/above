@@ -172,7 +172,7 @@ struct WelcomeView: View {
                     .padding(.top, 28)
                 Spacer(minLength: 24)
                 Text("Take ten seconds to notice.")
-                    .font(.system(size: 14)).padding(.bottom, 18)
+                    .font(.system(size: 14)).padding(.bottom, 2)
                 Button(action: onContinue) {
                     Text("Let’s look up ↗").font(.system(size: 22)).underline()
                         .padding(.vertical, 12)
