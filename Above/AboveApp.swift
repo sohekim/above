@@ -355,7 +355,7 @@ struct CalendarView: View {
                                     HStack(alignment: .firstTextBaseline, spacing: 16) {
                                         Text(String(format: "%02d", index + 1))
                                             .font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
-                                        Text(name).font(.system(size: 22, weight: .semibold)).tracking(-0.6)
+                                        Text(name).font(.system(size: 12, weight: .semibold))
                                         Spacer()
                                         if monthlyStyle == style {
                                             Circle().fill(.black).frame(width: 6, height: 6)
