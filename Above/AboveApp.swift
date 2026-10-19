@@ -169,6 +169,7 @@ struct CalendarView: View {
     @EnvironmentObject var store: SkyStore
     @State private var month = Date()
     @State private var yearView = true
+    @State private var showingMonthStyles = false
     @AppStorage("monthlyCalendarStyle") private var monthlyStyle = "Poster"
     private var calendarStyle: String { yearView ? "Year" : monthlyStyle }
     @State private var captureDate = Date()
@@ -303,39 +304,80 @@ struct CalendarView: View {
         }
         }
         .overlay(alignment: .topLeading) {
-            HStack(spacing: 14) {
-                Button { yearView = true } label: {
-                    Text("Year").fontWeight(yearView ? .semibold : .regular)
-                        .opacity(yearView ? 1 : 0.5)
+            ZStack(alignment: .topLeading) {
+                if showingMonthStyles {
+                    Color.black.opacity(0.001).contentShape(Rectangle())
+                        .onTapGesture { withAnimation(.easeOut(duration: 0.16)) { showingMonthStyles = false } }
+                        .accessibilityLabel("Close month designs")
+                        .accessibilityAddTraits(.isButton)
                 }
-                .accessibilityAddTraits(yearView ? .isSelected : [])
-                Menu {
-                    ForEach(["Classic", "Sky", "Poster"], id: \.self) { name in
-                        let style = name == "Classic" ? "Month v1" : name == "Sky" ? "Month v2" : "Poster"
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 14) {
                         Button {
-                            monthlyStyle = style
-                            yearView = false
+                            yearView = true
+                            showingMonthStyles = false
                         } label: {
-                            if monthlyStyle == style { Label(name, systemImage: "checkmark") }
-                            else { Text(name) }
+                            Text("Year").fontWeight(yearView ? .semibold : .regular)
+                                .opacity(yearView ? 1 : 0.5)
                         }
+                        .accessibilityAddTraits(yearView ? .isSelected : [])
+                        Button {
+                            withAnimation(.easeOut(duration: 0.16)) { showingMonthStyles.toggle() }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text("Month")
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 8, weight: .semibold))
+                                    .rotationEffect(.degrees(showingMonthStyles ? 180 : 0))
+                            }
+                            .fontWeight(yearView ? .regular : .semibold)
+                            .opacity(yearView && !showingMonthStyles ? 0.5 : 1)
+                        }
+                        .accessibilityLabel("Month designs")
+                        .accessibilityValue(showingMonthStyles ? "Expanded" : "Collapsed")
+                        .accessibilityAddTraits(yearView ? [] : .isSelected)
+                        Spacer()
+                        wordmark
                     }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text("Month")
-                        Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+                    .font(.system(size: 12))
+                    .foregroundStyle(hasSky && headerImage != nil && !showingMonthStyles ? .white : .black)
+                    .frame(height: 44)
+                    if showingMonthStyles {
+                        VStack(spacing: 0) {
+                            Rectangle().frame(height: 1)
+                            ForEach(Array(["Classic", "Sky", "Poster"].enumerated()), id: \.offset) { index, name in
+                                let style = name == "Classic" ? "Month v1" : name == "Sky" ? "Month v2" : "Poster"
+                                Button {
+                                    monthlyStyle = style
+                                    yearView = false
+                                    withAnimation(.easeOut(duration: 0.16)) { showingMonthStyles = false }
+                                } label: {
+                                    HStack(alignment: .firstTextBaseline, spacing: 16) {
+                                        Text(String(format: "%02d", index + 1))
+                                            .font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
+                                        Text(name).font(.system(size: 22, weight: .semibold)).tracking(-0.6)
+                                        Spacer()
+                                        if monthlyStyle == style {
+                                            Circle().fill(.black).frame(width: 6, height: 6)
+                                                .accessibilityHidden(true)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(monthlyStyle == style ? .isSelected : [])
+                                Rectangle().fill(.black.opacity(index == 2 ? 1 : 0.12)).frame(height: index == 2 ? 1 : 0.5)
+                            }
+                        }
+                        .foregroundStyle(.black)
+                        .transition(.opacity.combined(with: .offset(y: -4)))
                     }
-                    .fontWeight(yearView ? .regular : .semibold)
-                    .opacity(yearView ? 0.5 : 1)
                 }
-                .accessibilityLabel("Month, choose Classic, Sky, or Poster")
-                .accessibilityAddTraits(yearView ? [] : .isSelected)
-                Spacer()
-                wordmark
+                .padding(.horizontal, 16)
+                .padding(.bottom, showingMonthStyles ? 16 : 0)
+                .background { if showingMonthStyles { paper } }
             }
-            .font(.system(size: 12))
-            .foregroundStyle(hasSky && headerImage != nil ? .white : .black)
-            .padding(.horizontal, 16).padding(.top, 16)
         }
         .foregroundStyle(.black)
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { today = $0 }
