@@ -753,7 +753,7 @@ struct EntryView: View {
                         Spacer()
                         Button { confirmDelete = true } label: {
                             Image(systemName: "trash")
-                                .font(.system(size: 17))
+                                .font(.system(size: 15))
                                 .frame(width: 44, height: 44, alignment: .trailing)
                                 .contentShape(Rectangle())
                         }.accessibilityLabel("Delete photo")
