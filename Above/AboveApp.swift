@@ -99,7 +99,7 @@ struct SkyEntry: Codable, Identifiable {
     func saveCopyToPhotos(_ url: URL, date: Date) async {
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {
-            error = "Your sky is saved in Above. Allow Photos access in Settings to save a copy there."
+            error = "Your sky is saved in LookUp. Allow Photos access in Settings to save a copy there."
             return
         }
         do {
@@ -107,12 +107,12 @@ struct SkyEntry: Codable, Identifiable {
                 let request = PHAssetCreationRequest.forAsset()
                 request.creationDate = date
                 let options = PHAssetResourceCreationOptions()
-                options.originalFilename = "Above-\(url.lastPathComponent)"
+                options.originalFilename = "LookUp-\(url.lastPathComponent)"
                 options.uniformTypeIdentifier = "com.compuserve.gif"
                 request.addResource(with: .photo, fileURL: url, options: options)
             }
         } catch {
-            self.error = "Your sky is saved in Above, but the copy couldn’t be saved to Photos."
+            self.error = "Your sky is saved in LookUp, but the copy couldn’t be saved to Photos."
         }
     }
     func update(_ id: String, note: String) {
@@ -206,7 +206,7 @@ struct CalendarView: View {
     }
     var hasSky: Bool { calendarStyle == "Month v2" }
     var wordmark: some View {
-        Text("Above").font(.system(size: 12, weight: .semibold))
+        Text("LookUp").font(.system(size: 12, weight: .semibold))
     }
     var monthStart: Date { calendar.date(from: calendar.dateComponents([.year, .month], from: month))! }
     var days: [Date] {
@@ -424,12 +424,12 @@ struct CalendarView: View {
                     Task { await store.saveCopyToPhotos(url, date: date) }
                 }
             }
-            Button("Keep in Above", role: .cancel) {
+            Button("Keep in LookUp", role: .cancel) {
                 photosCopyPreference = "disabled"
                 pendingPhotosCopy = nil
             }
         } message: {
-            Text("Your skies are saved in Above. Save a copy to Photos, too. Your choice will apply to future skies.")
+            Text("Your skies are saved in LookUp. Save a copy to Photos, too. Your choice will apply to future skies.")
         }
         .fullScreenCover(item: $selected) { entry in
             NavigationStack {
@@ -604,7 +604,7 @@ struct CalendarView: View {
     }
     func openCamera(on date: Date) {
         guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
-            store.error = "Camera is unavailable on this device. Use Above on an iPhone to record your sky."
+            store.error = "Camera is unavailable on this device. Use LookUp on an iPhone to record your sky."
             return
         }
         captureDate = date
@@ -839,7 +839,7 @@ struct InlineNoteInput: UIViewRepresentable {
         guard !cancelled, session.inputs.isEmpty else { return }
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device) else {
-            message = "A camera is needed to record your sky. Try Above on your iPhone."
+            message = "A camera is needed to record your sky. Try LookUp on your iPhone."
             return
         }
         session.beginConfiguration()
@@ -1032,7 +1032,7 @@ struct CameraView: View {
                         Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
                     }.accessibilityLabel("Back")
                     Spacer()
-                    Text("Above").font(.system(size: 12, weight: .semibold))
+                    Text("LookUp").font(.system(size: 12, weight: .semibold))
                 }
                 Spacer(minLength: 20)
                 Button { camera.record() } label: {
@@ -1144,9 +1144,9 @@ struct YearFlowLayout: Layout {
 struct AboveWordmark: View {
     var height: CGFloat = 20
     var body: some View {
-        Text("Above")
+        Text("LookUp")
             .font(.system(size: height, weight: .regular))
             .tracking(-height * 2 / 85)
-            .accessibilityLabel("Above")
+            .accessibilityLabel("LookUp")
     }
 }

@@ -54,3 +54,5 @@ Month v2 uses a bold uppercase 24-point month-and-year heading, bold weekday lab
 The camera circle fills more of the screen width. Tap during recording to pause; tap again to resume. Only captured time counts toward ten seconds. Paused segments are joined for GIF generation, excluding the pause.
 
 After the first successful capture, Above asks whether to keep an animated GIF copy in Photos. The choice persists for future captures. Photos add-only authorization is requested only after Save to Photos is chosen. The app-local GIF is saved first and remains available if Photos permission is denied or export fails. Samples do not trigger this prompt.
+
+The user-facing app name is LookUp, including the wordmark, home-screen display name, and save-copy messaging. The existing bundle identifier and storage paths are preserved so installed records remain available.
