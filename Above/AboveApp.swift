@@ -1,4 +1,5 @@
 import SwiftUI
+import Photos
 import UIKit
 @preconcurrency import AVFoundation
 import ImageIO
@@ -95,6 +96,25 @@ struct SkyEntry: Codable, Identifiable {
             return false
         }
     }
+    func saveCopyToPhotos(_ url: URL, date: Date) async {
+        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        guard status == .authorized || status == .limited else {
+            error = "Your sky is saved in Above. Allow Photos access in Settings to save a copy there."
+            return
+        }
+        do {
+            try await PHPhotoLibrary.shared().performChanges {
+                let request = PHAssetCreationRequest.forAsset()
+                request.creationDate = date
+                let options = PHAssetResourceCreationOptions()
+                options.originalFilename = "Above-\(url.lastPathComponent)"
+                options.uniformTypeIdentifier = "com.compuserve.gif"
+                request.addResource(with: .photo, fileURL: url, options: options)
+            }
+        } catch {
+            self.error = "Your sky is saved in Above, but the copy couldn’t be saved to Photos."
+        }
+    }
     func update(_ id: String, note: String) {
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
         entries[index].note = note
@@ -173,6 +193,10 @@ struct CalendarView: View {
     @AppStorage("monthlyCalendarStyle") private var monthlyStyle = "Poster"
     private var calendarStyle: String { yearView ? "Year" : monthlyStyle }
     @State private var captureDate = Date()
+    @AppStorage("photosCopyPreference") private var photosCopyPreference = "unasked"
+    @State private var pendingPhotosCopy: URL?
+    @State private var pendingPhotosDate = Date()
+    @State private var showPhotosChoice = false
     @State private var selected: SkyEntry?
     @State private var camera = false
     @State private var today = Date()
@@ -372,7 +396,41 @@ struct CalendarView: View {
         }
         .foregroundStyle(.black)
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { today = $0 }
-        .fullScreenCover(isPresented: $camera) { CameraView { url in store.saveGIF(url, on: captureDate) } }
+        .fullScreenCover(isPresented: $camera, onDismiss: {
+            guard let url = pendingPhotosCopy else { return }
+            if photosCopyPreference == "unasked" {
+                showPhotosChoice = true
+            } else if photosCopyPreference == "enabled" {
+                let date = pendingPhotosDate
+                pendingPhotosCopy = nil
+                Task { await store.saveCopyToPhotos(url, date: date) }
+            } else {
+                pendingPhotosCopy = nil
+            }
+        }) {
+            CameraView { url in
+                guard store.saveGIF(url, on: captureDate) else { return false }
+                pendingPhotosCopy = store.directory.appendingPathComponent(store.key(captureDate) + ".gif")
+                pendingPhotosDate = captureDate
+                return true
+            }
+        }
+        .alert("Keep a copy in Photos?", isPresented: $showPhotosChoice) {
+            Button("Save to Photos") {
+                photosCopyPreference = "enabled"
+                if let url = pendingPhotosCopy {
+                    let date = pendingPhotosDate
+                    pendingPhotosCopy = nil
+                    Task { await store.saveCopyToPhotos(url, date: date) }
+                }
+            }
+            Button("Keep in Above", role: .cancel) {
+                photosCopyPreference = "disabled"
+                pendingPhotosCopy = nil
+            }
+        } message: {
+            Text("Your skies are saved in Above. Save a copy to Photos, too. Your choice will apply to future skies.")
+        }
         .fullScreenCover(item: $selected) { entry in
             NavigationStack {
                 EntryView(entry: entry).environmentObject(store)

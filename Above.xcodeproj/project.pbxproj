@@ -150,6 +150,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = TJ7Z9ACXT8;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save a copy of your sky GIFs to Photos when you choose.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take a photo of the sky to keep in your daily journal.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -170,6 +171,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = TJ7Z9ACXT8;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save a copy of your sky GIFs to Photos when you choose.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take a photo of the sky to keep in your daily journal.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
