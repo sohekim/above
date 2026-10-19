@@ -200,7 +200,8 @@ struct CalendarView: View {
             let photoSize = max(20, min((geometry.size.width - 50) / 7,
                                        (geometry.size.height - 290) / 6 - 4))
             let rows = (offset + days.count + 6) / 7
-            let gridHeight = 24 + CGFloat(rows) * photoSize + CGFloat(rows - 1) * 4
+            let reservedRows = hasSky ? 6 : rows
+            let gridHeight = 24 + CGFloat(reservedRows) * photoSize + CGFloat(reservedRows - 1) * 4
             let fullHeight = geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom
             let capturedHeaderHeight = max(52, geometry.size.height - gridHeight - 90)
             let emptyHeaderHeight = max(52, geometry.size.height - gridHeight - 250 - 32 - fullHeight * 0.05)
@@ -259,6 +260,7 @@ struct CalendarView: View {
                     }
                 }.padding(.top, 12).padding(.bottom, 12)
                 skyGrid(photoSize: photoSize)
+                    .frame(height: hasSky ? gridHeight : nil, alignment: .top)
                 if !hasSky {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(month.formatted(.dateTime.month(.wide)).lowercased())
