@@ -238,7 +238,6 @@ struct CalendarView: View {
                         .accessibilityLabel(todayImage == nil ? "Today’s sky, waiting to be captured" : "Today’s captured sky")
                         wordmark
                             .foregroundStyle(todayImage == nil ? Color.black : Color.white)
-                            .shadow(color: todayImage == nil ? .clear : .black.opacity(0.5), radius: 3, y: 1)
                             .frame(maxWidth: .infinity, alignment: .trailing)
                             .padding(.horizontal, 16).padding(.top, 12)
                         }.frame(width: header.size.width, height: header.size.height, alignment: .top)
@@ -1021,31 +1020,46 @@ struct AboveWordmark: View {
     var height: CGFloat = 20
     var body: some View {
         AbovePixelLetters().fill()
-            .overlay { AbovePixelLetters().stroke(style: StrokeStyle(lineWidth: height / 45, lineJoin: .round)) }
             .frame(width: height * 29 / 7, height: height)
             .accessibilityLabel("above")
     }
 }
 
 struct AbovePixelLetters: Shape {
-    private let letters = [
-        ["00000", "00000", "01110", "00001", "01111", "10001", "01111"],
-        ["10000", "10000", "11110", "10001", "10001", "10001", "11110"],
-        ["00000", "00000", "01110", "10001", "10001", "10001", "01110"],
-        ["00000", "00000", "10001", "10001", "10001", "01010", "00100"],
-        ["00000", "00000", "01110", "10001", "11111", "10000", "01111"]
+    private let contours: [[CGPoint]] = [
+        [CGPoint(x: 27, y: 7), CGPoint(x: 26, y: 7), CGPoint(x: 25, y: 7), CGPoint(x: 25, y: 6), CGPoint(x: 24, y: 6), CGPoint(x: 24, y: 5), CGPoint(x: 24, y: 4), CGPoint(x: 24, y: 3), CGPoint(x: 25, y: 3), CGPoint(x: 25, y: 2), CGPoint(x: 26, y: 2), CGPoint(x: 27, y: 2), CGPoint(x: 28, y: 2), CGPoint(x: 28, y: 3), CGPoint(x: 29, y: 3), CGPoint(x: 29, y: 4), CGPoint(x: 29, y: 5), CGPoint(x: 28, y: 5), CGPoint(x: 27, y: 5), CGPoint(x: 26, y: 5), CGPoint(x: 25, y: 5), CGPoint(x: 25, y: 6), CGPoint(x: 26, y: 6), CGPoint(x: 27, y: 6), CGPoint(x: 28, y: 6), CGPoint(x: 29, y: 6), CGPoint(x: 29, y: 7), CGPoint(x: 28, y: 7)],
+        [CGPoint(x: 6, y: 4), CGPoint(x: 6, y: 3), CGPoint(x: 6, y: 2), CGPoint(x: 6, y: 1), CGPoint(x: 6, y: 0), CGPoint(x: 7, y: 0), CGPoint(x: 7, y: 1), CGPoint(x: 7, y: 2), CGPoint(x: 8, y: 2), CGPoint(x: 9, y: 2), CGPoint(x: 10, y: 2), CGPoint(x: 10, y: 3), CGPoint(x: 9, y: 3), CGPoint(x: 8, y: 3), CGPoint(x: 7, y: 3), CGPoint(x: 7, y: 4), CGPoint(x: 7, y: 5), CGPoint(x: 7, y: 6), CGPoint(x: 8, y: 6), CGPoint(x: 9, y: 6), CGPoint(x: 10, y: 6), CGPoint(x: 10, y: 5), CGPoint(x: 10, y: 4), CGPoint(x: 10, y: 3), CGPoint(x: 11, y: 3), CGPoint(x: 11, y: 4), CGPoint(x: 11, y: 5), CGPoint(x: 11, y: 6), CGPoint(x: 10, y: 6), CGPoint(x: 10, y: 7), CGPoint(x: 9, y: 7), CGPoint(x: 8, y: 7), CGPoint(x: 7, y: 7), CGPoint(x: 6, y: 7), CGPoint(x: 6, y: 6), CGPoint(x: 6, y: 5)],
+        [CGPoint(x: 18, y: 3), CGPoint(x: 18, y: 2), CGPoint(x: 19, y: 2), CGPoint(x: 19, y: 3), CGPoint(x: 19, y: 4), CGPoint(x: 19, y: 5), CGPoint(x: 18, y: 5), CGPoint(x: 18, y: 4)],
+        [CGPoint(x: 13, y: 7), CGPoint(x: 13, y: 6), CGPoint(x: 12, y: 6), CGPoint(x: 12, y: 5), CGPoint(x: 12, y: 4), CGPoint(x: 12, y: 3), CGPoint(x: 13, y: 3), CGPoint(x: 13, y: 2), CGPoint(x: 14, y: 2), CGPoint(x: 15, y: 2), CGPoint(x: 16, y: 2), CGPoint(x: 16, y: 3), CGPoint(x: 15, y: 3), CGPoint(x: 14, y: 3), CGPoint(x: 13, y: 3), CGPoint(x: 13, y: 4), CGPoint(x: 13, y: 5), CGPoint(x: 13, y: 6), CGPoint(x: 14, y: 6), CGPoint(x: 15, y: 6), CGPoint(x: 16, y: 6), CGPoint(x: 16, y: 7), CGPoint(x: 15, y: 7), CGPoint(x: 14, y: 7)],
+        [CGPoint(x: 16, y: 6), CGPoint(x: 16, y: 5), CGPoint(x: 16, y: 4), CGPoint(x: 16, y: 3), CGPoint(x: 17, y: 3), CGPoint(x: 17, y: 4), CGPoint(x: 17, y: 5), CGPoint(x: 17, y: 6)],
+        [CGPoint(x: 3, y: 7), CGPoint(x: 2, y: 7), CGPoint(x: 1, y: 7), CGPoint(x: 1, y: 6), CGPoint(x: 0, y: 6), CGPoint(x: 0, y: 5), CGPoint(x: 1, y: 5), CGPoint(x: 1, y: 6), CGPoint(x: 2, y: 6), CGPoint(x: 3, y: 6), CGPoint(x: 4, y: 6), CGPoint(x: 4, y: 5), CGPoint(x: 3, y: 5), CGPoint(x: 2, y: 5), CGPoint(x: 1, y: 5), CGPoint(x: 1, y: 4), CGPoint(x: 2, y: 4), CGPoint(x: 3, y: 4), CGPoint(x: 4, y: 4), CGPoint(x: 4, y: 3), CGPoint(x: 5, y: 3), CGPoint(x: 5, y: 4), CGPoint(x: 5, y: 5), CGPoint(x: 5, y: 6), CGPoint(x: 5, y: 7), CGPoint(x: 4, y: 7)],
+        [CGPoint(x: 25, y: 3), CGPoint(x: 25, y: 4), CGPoint(x: 26, y: 4), CGPoint(x: 27, y: 4), CGPoint(x: 28, y: 4), CGPoint(x: 28, y: 3), CGPoint(x: 27, y: 3), CGPoint(x: 26, y: 3)],
+        [CGPoint(x: 22, y: 4), CGPoint(x: 22, y: 3), CGPoint(x: 22, y: 2), CGPoint(x: 23, y: 2), CGPoint(x: 23, y: 3), CGPoint(x: 23, y: 4), CGPoint(x: 23, y: 5), CGPoint(x: 22, y: 5)],
+        [CGPoint(x: 4, y: 3), CGPoint(x: 3, y: 3), CGPoint(x: 2, y: 3), CGPoint(x: 1, y: 3), CGPoint(x: 1, y: 2), CGPoint(x: 2, y: 2), CGPoint(x: 3, y: 2), CGPoint(x: 4, y: 2)],
+        [CGPoint(x: 21, y: 6), CGPoint(x: 21, y: 5), CGPoint(x: 22, y: 5), CGPoint(x: 22, y: 6)],
+        [CGPoint(x: 20, y: 7), CGPoint(x: 20, y: 6), CGPoint(x: 19, y: 6), CGPoint(x: 19, y: 5), CGPoint(x: 20, y: 5), CGPoint(x: 20, y: 6), CGPoint(x: 21, y: 6), CGPoint(x: 21, y: 7)]
     ]
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let unit = min(rect.width / 29, rect.height / 7)
-        for (letterIndex, rows) in letters.enumerated() {
-            for (y, row) in rows.enumerated() {
-                for (x, pixel) in row.enumerated() where pixel == "1" {
-                    let box = CGRect(x: rect.minX + CGFloat(letterIndex * 6 + x) * unit,
-                                     y: rect.minY + CGFloat(y) * unit, width: unit, height: unit)
-                    path.addRect(box)
-                }
+        let radius = unit * 0.32
+        for contour in contours {
+            let points = contour.map { CGPoint(x: rect.minX + $0.x * unit, y: rect.minY + $0.y * unit) }
+            for index in points.indices {
+                let previous = points[(index + points.count - 1) % points.count]
+                let point = points[index]
+                let next = points[(index + 1) % points.count]
+                let incoming = hypot(point.x - previous.x, point.y - previous.y)
+                let outgoing = hypot(next.x - point.x, next.y - point.y)
+                let inset = min(radius, min(incoming, outgoing) / 2)
+                let entry = CGPoint(x: point.x + (previous.x - point.x) * inset / incoming,
+                                    y: point.y + (previous.y - point.y) * inset / incoming)
+                let exit = CGPoint(x: point.x + (next.x - point.x) * inset / outgoing,
+                                   y: point.y + (next.y - point.y) * inset / outgoing)
+                if index == 0 { path.move(to: entry) } else { path.addLine(to: entry) }
+                path.addQuadCurve(to: exit, control: point)
             }
+            path.closeSubpath()
         }
         return path
     }
