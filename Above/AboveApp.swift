@@ -417,10 +417,15 @@ struct CalendarView: View {
                     Image(uiImage: image).resizable().scaledToFill()
                 }
                 if store.entry(day) == nil {
+                if calendar.isDate(day, inSameDayAs: today) {
+                    Image(systemName: "plus").font(.system(size: 25, weight: .regular))
+                        .foregroundStyle(blocks ? .white : .black)
+                } else {
                 Text("\(calendar.component(.day, from: day))")
                     .font(.system(size: blocks ? 10 : 31, weight: .bold))
                     .foregroundStyle(blocks || store.entry(day) != nil ? .white : .black)
                     .shadow(color: store.entry(day) != nil ? .black.opacity(0.5) : .clear, radius: 2)
+                }
                 }
             }
             .frame(width: side - (blocks ? 1 : 0), height: side - (blocks ? 1 : 0))
@@ -462,6 +467,8 @@ struct CalendarView: View {
                                 ZStack {
                                     if let entry = store.entry(day), let image = store.image(entry) {
                                         Image(uiImage: image).resizable().scaledToFill()
+                                    } else if calendar.isDate(day, inSameDayAs: today) {
+                                        Image(systemName: "plus").font(.system(size: 12, weight: .regular))
                                     } else {
                                         Text("\(index + 1)").font(.system(size: 10, weight: .regular))
                                             .foregroundStyle(.black.opacity(day > today ? 0.25 : 0.7))
