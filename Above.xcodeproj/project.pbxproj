@@ -10,7 +10,6 @@
 		A00000000000000000000016 /* AboveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000013 /* AboveApp.swift */; };
 		A00000000000000000000019 /* DemoSkies in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000018 /* DemoSkies */; };
 		A00000000000000000000021 /* SkyGIFEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000020 /* SkyGIFEncoder.swift */; };
-		A00000000000000000000023 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000022 /* Fonts */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -18,7 +17,6 @@
 		A00000000000000000000013 /* AboveApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboveApp.swift; sourceTree = "<group>"; };
 		A00000000000000000000018 /* DemoSkies */ = {isa = PBXFileReference; lastKnownFileType = folder; path = DemoSkies; sourceTree = "<group>"; };
 		A00000000000000000000020 /* SkyGIFEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyGIFEncoder.swift; sourceTree = "<group>"; };
-		A00000000000000000000022 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Fonts; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,7 +52,6 @@
 				A00000000000000000000020 /* SkyGIFEncoder.swift */,
 				A00000000000000000000013 /* AboveApp.swift */,
 				A00000000000000000000018 /* DemoSkies */,
-				A00000000000000000000022 /* Fonts */,
 			);
 			path = Above;
 			sourceTree = "<group>";
@@ -110,7 +107,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				A00000000000000000000019 /* DemoSkies in Resources */,
-				A00000000000000000000023 /* Fonts in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
