@@ -229,6 +229,13 @@ struct CalendarView: View {
                         ZStack(alignment: .topTrailing) {
                         ZStack {
                             paper
+                            if hasSky && todayImage == nil {
+                                LinearGradient(
+                                    colors: [Color(red: 0.80, green: 0.89, blue: 0.97),
+                                             Color(red: 0.91, green: 0.95, blue: 0.99),
+                                             Color(white: 0.98)],
+                                    startPoint: .top, endPoint: .bottom)
+                            }
                             if let todayImage {
                                 Image(uiImage: todayImage).resizable().scaledToFill()
                             }
