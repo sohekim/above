@@ -157,7 +157,6 @@ struct WelcomeView: View {
                 HStack {
                     Text("LookUp").font(.system(size: 12, weight: .semibold))
                     Spacer()
-                    Button("Skip") { onContinue() }.font(.system(size: 15))
                 }
                 Spacer(minLength: 24)
                 Text("We spend about 90% of our time indoors.")
