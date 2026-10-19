@@ -337,14 +337,14 @@ struct CalendarView: View {
             let side = (geometry.size.width - 44) / 7
             let weekCount = (offset + days.count + 6) / 7
             VStack(alignment: .leading, spacing: 0) {
-                Color.clear.frame(height: 26).padding(.top, 46)
+                Color.clear.frame(height: 24).padding(.top, 12)
                 HStack {
                     Text(month.formatted(.dateTime.month(.twoDigits)))
                         .font(.system(size: blocks ? 110 : 48, weight: blocks ? .black : .bold)).tracking(blocks ? -5 : -2)
                     Spacer()
                     Text("’" + String(calendar.component(.year, from: month) % 100))
                         .font(.system(size: blocks ? 24 : 48, weight: .bold)).tracking(-2)
-                }.padding(.top, 18)
+                }.frame(height: 65).padding(.top, 32)
                 if !blocks {
                     Rectangle().frame(height: 1).padding(.vertical, 12)
                     HStack(spacing: 12) {
@@ -362,7 +362,7 @@ struct CalendarView: View {
 
                 }
                 if blocks { Color.clear.frame(height: 16) }
-                else { Spacer(minLength: 12) }
+                else { Color.clear.frame(height: 16) }
                 HStack(spacing: 2) {
                     ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, name in
                         Text(name).font(.system(size: blocks ? 10 : 25, weight: .bold))
@@ -400,7 +400,7 @@ struct CalendarView: View {
                         .accessibilityLabel("Next month")
                 }.padding(.top, 18)
                 }
-                if blocks { Spacer(minLength: 0) }
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 16).padding(.bottom, 18)
             .frame(width: geometry.size.width, height: geometry.size.height)
