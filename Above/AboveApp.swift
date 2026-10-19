@@ -308,15 +308,15 @@ struct CalendarView: View {
         .overlay(alignment: .topLeading) {
             HStack(spacing: 14) {
                 // Monthly layouts remain implemented for future comparison.
-                ForEach(["Year", "Poster"], id: \.self) { option in
+                ForEach(["Year", "Month"], id: \.self) { option in
                     Button {
                         yearView = option == "Year"
-                        calendarStyle = option
+                        calendarStyle = option == "Month" ? "Poster" : option
                     } label: {
-                        Text(option).fontWeight(calendarStyle == option ? .semibold : .regular)
-                            .opacity(calendarStyle == option ? 1 : 0.5)
+                        Text(option).fontWeight((calendarStyle == option || (option == "Month" && calendarStyle == "Poster")) ? .semibold : .regular)
+                            .opacity((calendarStyle == option || (option == "Month" && calendarStyle == "Poster")) ? 1 : 0.5)
                     }
-                    .accessibilityAddTraits(calendarStyle == option ? .isSelected : [])
+                    .accessibilityAddTraits((calendarStyle == option || (option == "Month" && calendarStyle == "Poster")) ? .isSelected : [])
                 }
             }
             .font(.system(size: 12))
