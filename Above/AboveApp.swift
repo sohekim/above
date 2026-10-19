@@ -26,7 +26,9 @@ struct SkyEntry: Codable, Identifiable {
                 entries = try JSONDecoder().decode([SkyEntry].self, from: Data(contentsOf: url))
             }
         } catch { self.error = "Your saved skies couldn’t be loaded. \(error.localizedDescription)" }
-        seedSamples()
+        #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("--sample-skies") { seedSamples() }
+        #endif
     }
     private func seedSamples() {
         guard !UserDefaults.standard.bool(forKey: "seededSkySamplesV1") else { return }
@@ -189,6 +191,7 @@ struct CalendarView: View {
     @State private var month = Date()
     @State private var yearView = true
     @State private var showingMonthStyles = false
+    @State private var showingSettings = false
     @AppStorage("monthlyCalendarStyle") private var monthlyStyle = "Poster"
     private var calendarStyle: String { yearView ? "Year" : monthlyStyle }
     @State private var captureDate = Date()
@@ -205,7 +208,13 @@ struct CalendarView: View {
     }
     var hasSky: Bool { calendarStyle == "Month v2" }
     var wordmark: some View {
-        Text("LookUp").font(.system(size: 12, weight: .semibold))
+        Button {
+            showingMonthStyles = false
+            showingSettings = true
+        } label: {
+            Text("LookUp").font(.system(size: 12, weight: .semibold))
+        }
+        .accessibilityLabel("LookUp settings")
             #if targetEnvironment(simulator)
             .contextMenu {
                 Button("Preview introduction") {
@@ -402,6 +411,7 @@ struct CalendarView: View {
         }
         .foregroundStyle(.black)
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { today = $0 }
+        .fullScreenCover(isPresented: $showingSettings) { StorageSettingsView() }
         .fullScreenCover(isPresented: $camera, onDismiss: {
             guard let url = pendingPhotosCopy else { return }
             if photosCopyPreference == "unasked" {
@@ -654,6 +664,61 @@ struct CalendarView: View {
         }
     }
     func move(_ amount: Int) { month = calendar.date(byAdding: .month, value: amount, to: monthStart)! }
+}
+
+struct StorageSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @AppStorage("photosCopyPreference") private var photosCopyPreference = "unasked"
+    @State private var checkingPermission = false
+    @State private var permissionDenied = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Button { dismiss() } label: {
+                    Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
+                }.accessibilityLabel("Back")
+                Spacer()
+                Text("LookUp").font(.system(size: 12, weight: .semibold))
+            }
+            Text("your skies.").font(.system(size: 36, weight: .bold)).tracking(-1)
+                .padding(.top, 36).padding(.bottom, 32)
+            Rectangle().frame(height: 1)
+            Toggle(isOn: Binding(get: { photosCopyPreference == "enabled" }, set: { enabled in
+                if !enabled { photosCopyPreference = "disabled"; return }
+                checkingPermission = true
+                Task { @MainActor in
+                    let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+                    checkingPermission = false
+                    if status == .authorized || status == .limited {
+                        photosCopyPreference = "enabled"
+                    } else {
+                        photosCopyPreference = "disabled"
+                        permissionDenied = true
+                    }
+                }
+            })) {
+                Text("Save a copy to Photos").font(.system(size: 16, weight: .semibold))
+            }
+            .tint(.black).disabled(checkingPermission).padding(.vertical, 20)
+            Rectangle().fill(.black.opacity(0.15)).frame(height: 0.5)
+            Text("New skies will also be saved to Photos as moving GIFs. Your existing records stay where they are.")
+                .font(.system(size: 14)).foregroundStyle(.secondary).lineSpacing(4).padding(.top, 18)
+            Text("Your skies and notes are always saved in LookUp on this iPhone. Turning this off keeps future captures in LookUp only.")
+                .font(.system(size: 14)).foregroundStyle(.secondary).lineSpacing(4).padding(.top, 16)
+            Spacer()
+        }
+        .padding(.horizontal, 28).padding(.top, 12).padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity).background(paper).foregroundStyle(.black)
+        .alert("Allow Photos access", isPresented: $permissionDenied) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            }
+            Button("Not now", role: .cancel) { }
+        } message: {
+            Text("Allow LookUp to add to Photos in Settings. Your records in LookUp are safe either way.")
+        }
+    }
 }
 
 struct EntryView: View {
