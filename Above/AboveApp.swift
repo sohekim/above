@@ -207,6 +207,13 @@ struct CalendarView: View {
     var hasSky: Bool { calendarStyle == "Month v2" }
     var wordmark: some View {
         Text("LookUp").font(.system(size: 12, weight: .semibold))
+            #if targetEnvironment(simulator)
+            .contextMenu {
+                Button("Preview introduction") {
+                    UserDefaults.standard.set(false, forKey: "hasSeenWelcome")
+                }
+            }
+            #endif
     }
     var monthStart: Date { calendar.date(from: calendar.dateComponents([.year, .month], from: month))! }
     var days: [Date] {
