@@ -194,10 +194,10 @@ struct CalendarView: View {
             Button("오늘 하늘 없음") { previewSky = false }
             Button("실제 저장된 하늘") { previewSky = nil }
         } label: {
-            AboveWordmark(height: 20)
+            AboveWordmark(height: 12)
         }.accessibilityLabel("above, compare home versions")
         #else
-        AboveWordmark(height: 20)
+        AboveWordmark(height: 12)
         #endif
     }
     var monthStart: Date { calendar.date(from: calendar.dateComponents([.year, .month], from: month))! }
@@ -236,10 +236,6 @@ struct CalendarView: View {
                         .clipped()
                         .offset(y: -geometry.safeAreaInsets.top)
                         .accessibilityLabel(todayImage == nil ? "Today’s sky, waiting to be captured" : "Today’s captured sky")
-                        wordmark
-                            .foregroundStyle(todayImage == nil ? Color.black : Color.white)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                            .padding(.horizontal, 16).padding(.top, 12)
                         }.frame(width: header.size.width, height: header.size.height, alignment: .top)
                     }
                 }
@@ -318,10 +314,12 @@ struct CalendarView: View {
                     }
                     .accessibilityAddTraits((calendarStyle == option || (option == "Month" && calendarStyle == "Poster")) ? .isSelected : [])
                 }
+                Spacer()
+                wordmark
             }
             .font(.system(size: 12))
             .foregroundStyle(hasSky && headerImage != nil ? .white : .black)
-            .padding(.leading, 16).padding(.top, 16)
+            .padding(.horizontal, 16).padding(.top, 16)
         }
         .foregroundStyle(.black)
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { today = $0 }
@@ -339,7 +337,7 @@ struct CalendarView: View {
             let side = (geometry.size.width - 44) / 7
             let weekCount = (offset + days.count + 6) / 7
             VStack(alignment: .leading, spacing: 0) {
-                HStack { Spacer(); wordmark }.padding(.top, 46)
+                Color.clear.frame(height: 26).padding(.top, 46)
                 HStack {
                     Text(month.formatted(.dateTime.month(.twoDigits)))
                         .font(.system(size: blocks ? 110 : 48, weight: .black)).tracking(-5)
@@ -427,7 +425,7 @@ struct CalendarView: View {
         GeometryReader { geometry in
         let circleSize = min(22, max(14, (geometry.size.height - 140) / 27))
         VStack(alignment: .leading, spacing: 10) {
-            HStack { Spacer(); wordmark }.padding(.top, 12)
+            Color.clear.frame(height: 24).padding(.top, 12)
             HStack {
                 Text(month.formatted(.dateTime.year())).font(.system(size: 54, weight: .bold)).tracking(-2)
                 Spacer()
