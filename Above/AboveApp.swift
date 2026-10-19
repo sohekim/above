@@ -169,7 +169,8 @@ struct CalendarView: View {
     @EnvironmentObject var store: SkyStore
     @State private var month = Date()
     @State private var yearView = true
-    @State private var calendarStyle = "Year"
+    @AppStorage("monthlyCalendarStyle") private var monthlyStyle = "Poster"
+    private var calendarStyle: String { yearView ? "Year" : monthlyStyle }
     @State private var captureDate = Date()
     @State private var selected: SkyEntry?
     @State private var camera = false
@@ -303,17 +304,32 @@ struct CalendarView: View {
         }
         .overlay(alignment: .topLeading) {
             HStack(spacing: 14) {
-                // Monthly layouts remain implemented for future comparison.
-                ForEach(["Year", "Month"], id: \.self) { option in
-                    Button {
-                        yearView = option == "Year"
-                        calendarStyle = option == "Month" ? "Poster" : option
-                    } label: {
-                        Text(option).fontWeight((calendarStyle == option || (option == "Month" && calendarStyle == "Poster")) ? .semibold : .regular)
-                            .opacity((calendarStyle == option || (option == "Month" && calendarStyle == "Poster")) ? 1 : 0.5)
-                    }
-                    .accessibilityAddTraits((calendarStyle == option || (option == "Month" && calendarStyle == "Poster")) ? .isSelected : [])
+                Button { yearView = true } label: {
+                    Text("Year").fontWeight(yearView ? .semibold : .regular)
+                        .opacity(yearView ? 1 : 0.5)
                 }
+                .accessibilityAddTraits(yearView ? .isSelected : [])
+                Menu {
+                    ForEach(["Classic", "Sky", "Poster"], id: \.self) { name in
+                        let style = name == "Classic" ? "Month v1" : name == "Sky" ? "Month v2" : "Poster"
+                        Button {
+                            monthlyStyle = style
+                            yearView = false
+                        } label: {
+                            if monthlyStyle == style { Label(name, systemImage: "checkmark") }
+                            else { Text(name) }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Month")
+                        Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+                    }
+                    .fontWeight(yearView ? .regular : .semibold)
+                    .opacity(yearView ? 0.5 : 1)
+                }
+                .accessibilityLabel("Month, choose Classic, Sky, or Poster")
+                .accessibilityAddTraits(yearView ? [] : .isSelected)
                 Spacer()
                 wordmark
             }
