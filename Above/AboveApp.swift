@@ -1019,48 +1019,61 @@ struct YearFlowLayout: Layout {
 struct AboveWordmark: View {
     var height: CGFloat = 20
     var body: some View {
-        AbovePixelLetters().fill()
+        AboveRoundedLetters()
+            .stroke(style: StrokeStyle(lineWidth: height * 0.75 / 7, lineCap: .round, lineJoin: .round))
             .frame(width: height * 29 / 7, height: height)
             .accessibilityLabel("above")
     }
 }
 
-struct AbovePixelLetters: Shape {
-    private let contours: [[CGPoint]] = [
-        [CGPoint(x: 27, y: 7), CGPoint(x: 26, y: 7), CGPoint(x: 25, y: 7), CGPoint(x: 25, y: 6), CGPoint(x: 24, y: 6), CGPoint(x: 24, y: 5), CGPoint(x: 24, y: 4), CGPoint(x: 24, y: 3), CGPoint(x: 25, y: 3), CGPoint(x: 25, y: 2), CGPoint(x: 26, y: 2), CGPoint(x: 27, y: 2), CGPoint(x: 28, y: 2), CGPoint(x: 28, y: 3), CGPoint(x: 29, y: 3), CGPoint(x: 29, y: 4), CGPoint(x: 29, y: 5), CGPoint(x: 28, y: 5), CGPoint(x: 27, y: 5), CGPoint(x: 26, y: 5), CGPoint(x: 25, y: 5), CGPoint(x: 25, y: 6), CGPoint(x: 26, y: 6), CGPoint(x: 27, y: 6), CGPoint(x: 28, y: 6), CGPoint(x: 29, y: 6), CGPoint(x: 29, y: 7), CGPoint(x: 28, y: 7)],
-        [CGPoint(x: 6, y: 4), CGPoint(x: 6, y: 3), CGPoint(x: 6, y: 2), CGPoint(x: 6, y: 1), CGPoint(x: 6, y: 0), CGPoint(x: 7, y: 0), CGPoint(x: 7, y: 1), CGPoint(x: 7, y: 2), CGPoint(x: 8, y: 2), CGPoint(x: 9, y: 2), CGPoint(x: 10, y: 2), CGPoint(x: 10, y: 3), CGPoint(x: 9, y: 3), CGPoint(x: 8, y: 3), CGPoint(x: 7, y: 3), CGPoint(x: 7, y: 4), CGPoint(x: 7, y: 5), CGPoint(x: 7, y: 6), CGPoint(x: 8, y: 6), CGPoint(x: 9, y: 6), CGPoint(x: 10, y: 6), CGPoint(x: 10, y: 5), CGPoint(x: 10, y: 4), CGPoint(x: 10, y: 3), CGPoint(x: 11, y: 3), CGPoint(x: 11, y: 4), CGPoint(x: 11, y: 5), CGPoint(x: 11, y: 6), CGPoint(x: 10, y: 6), CGPoint(x: 10, y: 7), CGPoint(x: 9, y: 7), CGPoint(x: 8, y: 7), CGPoint(x: 7, y: 7), CGPoint(x: 6, y: 7), CGPoint(x: 6, y: 6), CGPoint(x: 6, y: 5)],
-        [CGPoint(x: 18, y: 3), CGPoint(x: 18, y: 2), CGPoint(x: 19, y: 2), CGPoint(x: 19, y: 3), CGPoint(x: 19, y: 4), CGPoint(x: 19, y: 5), CGPoint(x: 18, y: 5), CGPoint(x: 18, y: 4)],
-        [CGPoint(x: 13, y: 7), CGPoint(x: 13, y: 6), CGPoint(x: 12, y: 6), CGPoint(x: 12, y: 5), CGPoint(x: 12, y: 4), CGPoint(x: 12, y: 3), CGPoint(x: 13, y: 3), CGPoint(x: 13, y: 2), CGPoint(x: 14, y: 2), CGPoint(x: 15, y: 2), CGPoint(x: 16, y: 2), CGPoint(x: 16, y: 3), CGPoint(x: 15, y: 3), CGPoint(x: 14, y: 3), CGPoint(x: 13, y: 3), CGPoint(x: 13, y: 4), CGPoint(x: 13, y: 5), CGPoint(x: 13, y: 6), CGPoint(x: 14, y: 6), CGPoint(x: 15, y: 6), CGPoint(x: 16, y: 6), CGPoint(x: 16, y: 7), CGPoint(x: 15, y: 7), CGPoint(x: 14, y: 7)],
-        [CGPoint(x: 16, y: 6), CGPoint(x: 16, y: 5), CGPoint(x: 16, y: 4), CGPoint(x: 16, y: 3), CGPoint(x: 17, y: 3), CGPoint(x: 17, y: 4), CGPoint(x: 17, y: 5), CGPoint(x: 17, y: 6)],
-        [CGPoint(x: 3, y: 7), CGPoint(x: 2, y: 7), CGPoint(x: 1, y: 7), CGPoint(x: 1, y: 6), CGPoint(x: 0, y: 6), CGPoint(x: 0, y: 5), CGPoint(x: 1, y: 5), CGPoint(x: 1, y: 6), CGPoint(x: 2, y: 6), CGPoint(x: 3, y: 6), CGPoint(x: 4, y: 6), CGPoint(x: 4, y: 5), CGPoint(x: 3, y: 5), CGPoint(x: 2, y: 5), CGPoint(x: 1, y: 5), CGPoint(x: 1, y: 4), CGPoint(x: 2, y: 4), CGPoint(x: 3, y: 4), CGPoint(x: 4, y: 4), CGPoint(x: 4, y: 3), CGPoint(x: 5, y: 3), CGPoint(x: 5, y: 4), CGPoint(x: 5, y: 5), CGPoint(x: 5, y: 6), CGPoint(x: 5, y: 7), CGPoint(x: 4, y: 7)],
-        [CGPoint(x: 25, y: 3), CGPoint(x: 25, y: 4), CGPoint(x: 26, y: 4), CGPoint(x: 27, y: 4), CGPoint(x: 28, y: 4), CGPoint(x: 28, y: 3), CGPoint(x: 27, y: 3), CGPoint(x: 26, y: 3)],
-        [CGPoint(x: 22, y: 4), CGPoint(x: 22, y: 3), CGPoint(x: 22, y: 2), CGPoint(x: 23, y: 2), CGPoint(x: 23, y: 3), CGPoint(x: 23, y: 4), CGPoint(x: 23, y: 5), CGPoint(x: 22, y: 5)],
-        [CGPoint(x: 4, y: 3), CGPoint(x: 3, y: 3), CGPoint(x: 2, y: 3), CGPoint(x: 1, y: 3), CGPoint(x: 1, y: 2), CGPoint(x: 2, y: 2), CGPoint(x: 3, y: 2), CGPoint(x: 4, y: 2)],
-        [CGPoint(x: 21, y: 6), CGPoint(x: 21, y: 5), CGPoint(x: 22, y: 5), CGPoint(x: 22, y: 6)],
-        [CGPoint(x: 20, y: 7), CGPoint(x: 20, y: 6), CGPoint(x: 19, y: 6), CGPoint(x: 19, y: 5), CGPoint(x: 20, y: 5), CGPoint(x: 20, y: 6), CGPoint(x: 21, y: 6), CGPoint(x: 21, y: 7)]
-    ]
+struct AboveRoundedLetters: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let unit = min(rect.width / 29, rect.height / 7)
-        let radius = unit * 0.32
-        for contour in contours {
-            let points = contour.map { CGPoint(x: rect.minX + $0.x * unit, y: rect.minY + $0.y * unit) }
-            for index in points.indices {
-                let previous = points[(index + points.count - 1) % points.count]
-                let point = points[index]
-                let next = points[(index + 1) % points.count]
-                let incoming = hypot(point.x - previous.x, point.y - previous.y)
-                let outgoing = hypot(next.x - point.x, next.y - point.y)
-                let inset = min(radius, min(incoming, outgoing) / 2)
-                let entry = CGPoint(x: point.x + (previous.x - point.x) * inset / incoming,
-                                    y: point.y + (previous.y - point.y) * inset / incoming)
-                let exit = CGPoint(x: point.x + (next.x - point.x) * inset / outgoing,
-                                   y: point.y + (next.y - point.y) * inset / outgoing)
-                if index == 0 { path.move(to: entry) } else { path.addLine(to: entry) }
-                path.addQuadCurve(to: exit, control: point)
-            }
-            path.closeSubpath()
+        func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + x * unit, y: rect.minY + y * unit)
         }
+        // Continuous strokes keep rounded steps joined without a dotted texture.
+        path.move(to: point(0.7, 2.6))
+        path.addLine(to: point(3.3, 2.6))
+        path.addQuadCurve(to: point(4.3, 3.6), control: point(4.3, 2.6))
+        path.addLine(to: point(4.3, 6.3))
+        path.addLine(to: point(1.3, 6.3))
+        path.addQuadCurve(to: point(0.5, 5.5), control: point(0.5, 6.3))
+        path.addQuadCurve(to: point(1.3, 4.6), control: point(0.5, 4.6))
+        path.addLine(to: point(4.3, 4.6))
+        path.move(to: point(6.5, 0.5))
+        path.addLine(to: point(6.5, 6.3))
+        path.addLine(to: point(9.3, 6.3))
+        path.addQuadCurve(to: point(10.3, 5.3), control: point(10.3, 6.3))
+        path.addLine(to: point(10.3, 3.6))
+        path.addQuadCurve(to: point(9.3, 2.6), control: point(10.3, 2.6))
+        path.addLine(to: point(6.5, 2.6))
+        path.move(to: point(13.4, 2.6))
+        path.addLine(to: point(15.3, 2.6))
+        path.addQuadCurve(to: point(16.3, 3.6), control: point(16.3, 2.6))
+        path.addLine(to: point(16.3, 5.3))
+        path.addQuadCurve(to: point(15.3, 6.3), control: point(16.3, 6.3))
+        path.addLine(to: point(13.4, 6.3))
+        path.addQuadCurve(to: point(12.5, 5.3), control: point(12.5, 6.3))
+        path.addLine(to: point(12.5, 3.6))
+        path.addQuadCurve(to: point(13.4, 2.6), control: point(12.5, 2.6))
+        path.move(to: point(18.5, 2.6))
+        path.addLine(to: point(18.5, 4.3))
+        path.addQuadCurve(to: point(19.1, 5.3), control: point(18.5, 4.9))
+        path.addLine(to: point(20.4, 6.3))
+        path.addLine(to: point(21.7, 5.3))
+        path.addQuadCurve(to: point(22.3, 4.3), control: point(22.3, 4.9))
+        path.addLine(to: point(22.3, 2.6))
+        path.move(to: point(24.5, 4.5))
+        path.addLine(to: point(28.3, 4.5))
+        path.addLine(to: point(28.3, 3.6))
+        path.addQuadCurve(to: point(27.3, 2.6), control: point(28.3, 2.6))
+        path.addLine(to: point(25.5, 2.6))
+        path.addQuadCurve(to: point(24.5, 3.6), control: point(24.5, 2.6))
+        path.addLine(to: point(24.5, 5.3))
+        path.addQuadCurve(to: point(25.5, 6.3), control: point(24.5, 6.3))
+        path.addLine(to: point(28.3, 6.3))
         return path
     }
 }
