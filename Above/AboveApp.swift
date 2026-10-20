@@ -1,4 +1,5 @@
 import SwiftUI
+import Photos
 import UIKit
 @preconcurrency import AVFoundation
 import ImageIO
@@ -25,7 +26,9 @@ struct SkyEntry: Codable, Identifiable {
                 entries = try JSONDecoder().decode([SkyEntry].self, from: Data(contentsOf: url))
             }
         } catch { self.error = "Your saved skies couldn’t be loaded. \(error.localizedDescription)" }
-        seedSamples()
+        #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("--sample-skies") { seedSamples() }
+        #endif
     }
     private func seedSamples() {
         guard !UserDefaults.standard.bool(forKey: "seededSkySamplesV1") else { return }
@@ -95,6 +98,25 @@ struct SkyEntry: Codable, Identifiable {
             return false
         }
     }
+    func saveCopyToPhotos(_ url: URL, date: Date) async {
+        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        guard status == .authorized || status == .limited else {
+            error = "Your sky is saved in LookUp. Allow Photos access in Settings to save a copy there."
+            return
+        }
+        do {
+            try await PHPhotoLibrary.shared().performChanges {
+                let request = PHAssetCreationRequest.forAsset()
+                request.creationDate = date
+                let options = PHAssetResourceCreationOptions()
+                options.originalFilename = "LookUp-\(url.lastPathComponent)"
+                options.uniformTypeIdentifier = "com.compuserve.gif"
+                request.addResource(with: .photo, fileURL: url, options: options)
+            }
+        } catch {
+            self.error = "Your sky is saved in LookUp, but the copy couldn’t be saved to Photos."
+        }
+    }
     func update(_ id: String, note: String) {
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
         entries[index].note = note
@@ -135,9 +157,8 @@ struct WelcomeView: View {
         GeometryReader { geometry in
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text("above").font(.system(size: 26, weight: .medium)).tracking(-0.6)
+                    Text("LookUp").font(.system(size: 12, weight: .semibold))
                     Spacer()
-                    Button("Skip") { onContinue() }.font(.system(size: 15))
                 }
                 Spacer(minLength: 24)
                 Text("We spend about 90% of our time indoors.")
@@ -145,14 +166,14 @@ struct WelcomeView: View {
                     .tracking(-1.8).lineSpacing(0)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
-                Text("There’s still a sky above you.")
+                Text("Outside, the clouds keep moving.")
                     .font(.system(size: geometry.size.height > 700 ? 43 : 35, weight: .medium))
                     .tracking(-1.8).lineSpacing(0)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 28)
                 Spacer(minLength: 24)
-                Text("Ten seconds. A little more looking up.")
-                    .font(.system(size: 14)).padding(.bottom, 18)
+                Text("Take ten seconds to notice.")
+                    .font(.system(size: 14)).padding(.bottom, 2)
                 Button(action: onContinue) {
                     Text("Let’s look up ↗").font(.system(size: 22)).underline()
                         .padding(.vertical, 12)
@@ -168,37 +189,39 @@ struct WelcomeView: View {
 struct CalendarView: View {
     @EnvironmentObject var store: SkyStore
     @State private var month = Date()
-    @State private var yearView = false
-    @State private var calendarStyle = "Month v2"
+    @State private var yearView = true
+    @State private var showingMonthStyles = false
+    @State private var showingSettings = false
+    @AppStorage("monthlyCalendarStyle") private var monthlyStyle = "Poster"
+    private var calendarStyle: String { yearView ? "Year" : monthlyStyle }
     @State private var captureDate = Date()
+    @AppStorage("photosCopyPreference") private var photosCopyPreference = "unasked"
+    @State private var pendingPhotosCopy: URL?
+    @State private var pendingPhotosDate = Date()
+    @State private var showPhotosChoice = false
     @State private var selected: SkyEntry?
     @State private var camera = false
     @State private var today = Date()
-    #if targetEnvironment(simulator)
-    @State private var previewSky: Bool? = true
-    #endif
     private let calendar = Calendar.current
     var headerImage: UIImage? {
-        #if targetEnvironment(simulator)
-        if let previewSky {
-            return previewSky ? Bundle.main.url(forResource: "blue", withExtension: "png", subdirectory: "DemoSkies").flatMap { UIImage(contentsOfFile: $0.path) } : nil
-        }
-        #endif
-        return store.entry(today).flatMap { store.image($0) }
+        store.entry(today).flatMap { store.image($0) }
     }
     var hasSky: Bool { calendarStyle == "Month v2" }
-    @ViewBuilder var wordmark: some View {
-        #if targetEnvironment(simulator)
-        Menu {
-            Button("오늘 하늘 있음 · 샘플") { previewSky = true }
-            Button("오늘 하늘 없음") { previewSky = false }
-            Button("실제 저장된 하늘") { previewSky = nil }
+    var wordmark: some View {
+        Button {
+            showingMonthStyles = false
+            showingSettings = true
         } label: {
-            Text("above").font(.system(size: 20, weight: .medium)).tracking(-0.6)
-        }.accessibilityLabel("above, compare home versions")
-        #else
-        Text("above").font(.system(size: 20, weight: .medium)).tracking(-0.6)
-        #endif
+            Text("LookUp").font(.system(size: 12, weight: .semibold))
+        }
+        .accessibilityLabel("LookUp settings")
+            #if targetEnvironment(simulator)
+            .contextMenu {
+                Button("Preview introduction") {
+                    UserDefaults.standard.set(false, forKey: "hasSeenWelcome")
+                }
+            }
+            #endif
     }
     var monthStart: Date { calendar.date(from: calendar.dateComponents([.year, .month], from: month))! }
     var days: [Date] {
@@ -216,7 +239,8 @@ struct CalendarView: View {
             let photoSize = max(20, min((geometry.size.width - 50) / 7,
                                        (geometry.size.height - 290) / 6 - 4))
             let rows = (offset + days.count + 6) / 7
-            let gridHeight = 24 + CGFloat(rows) * photoSize + CGFloat(rows - 1) * 4
+            let reservedRows = hasSky ? 6 : rows
+            let gridHeight = 24 + CGFloat(reservedRows) * photoSize + CGFloat(reservedRows - 1) * 4
             let fullHeight = geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom
             let capturedHeaderHeight = max(52, geometry.size.height - gridHeight - 90)
             let emptyHeaderHeight = max(52, geometry.size.height - gridHeight - 250 - 32 - fullHeight * 0.05)
@@ -227,6 +251,13 @@ struct CalendarView: View {
                         ZStack(alignment: .topTrailing) {
                         ZStack {
                             paper
+                            if hasSky && todayImage == nil {
+                                LinearGradient(
+                                    colors: [Color(red: 0.80, green: 0.89, blue: 0.97),
+                                             Color(red: 0.91, green: 0.95, blue: 0.99),
+                                             Color(white: 0.98)],
+                                    startPoint: .top, endPoint: .bottom)
+                            }
                             if let todayImage {
                                 Image(uiImage: todayImage).resizable().scaledToFill()
                             }
@@ -236,11 +267,6 @@ struct CalendarView: View {
                         .clipped()
                         .offset(y: -geometry.safeAreaInsets.top)
                         .accessibilityLabel(todayImage == nil ? "Today’s sky, waiting to be captured" : "Today’s captured sky")
-                        wordmark
-                            .foregroundStyle(todayImage == nil ? Color.black : Color.white)
-                            .shadow(color: todayImage == nil ? .clear : .black.opacity(0.5), radius: 3, y: 1)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                            .padding(.horizontal, 16).padding(.top, 12)
                         }.frame(width: header.size.width, height: header.size.height, alignment: .top)
                     }
                 }
@@ -249,7 +275,7 @@ struct CalendarView: View {
                 .padding(.horizontal, -16)
                 HStack(spacing: 12) {
                     if hasSky {
-                        Text(month.formatted(.dateTime.month(.abbreviated).year()).uppercased())
+                        Text("\(month.formatted(.dateTime.month(.abbreviated)).lowercased()) ’\(String(format: "%02d", calendar.component(.year, from: month) % 100))")
                             .font(.system(size: 24, weight: .bold)).tracking(-0.8)
                             .lineLimit(1).minimumScaleFactor(0.75)
                             .accessibilityAddTraits(.isHeader)
@@ -273,6 +299,7 @@ struct CalendarView: View {
                     }
                 }.padding(.top, 12).padding(.bottom, 12)
                 skyGrid(photoSize: photoSize)
+                    .frame(height: hasSky ? gridHeight : nil, alignment: .top)
                 if !hasSky {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(month.formatted(.dateTime.month(.wide)).lowercased())
@@ -307,25 +334,119 @@ struct CalendarView: View {
         }
         }
         .overlay(alignment: .topLeading) {
-            HStack(spacing: 14) {
-                ForEach(["Month v1", "Month v2", "Year", "Poster"], id: \.self) { option in
-                    Button {
-                        yearView = option == "Year"
-                        calendarStyle = option
-                    } label: {
-                        Text(option).fontWeight(calendarStyle == option ? .semibold : .regular)
-                            .opacity(calendarStyle == option ? 1 : 0.5)
-                    }
-                    .accessibilityAddTraits(calendarStyle == option ? .isSelected : [])
+            ZStack(alignment: .topLeading) {
+                if showingMonthStyles {
+                    Color.black.opacity(0.001).contentShape(Rectangle())
+                        .onTapGesture { withAnimation(.easeOut(duration: 0.16)) { showingMonthStyles = false } }
+                        .accessibilityLabel("Close month designs")
+                        .accessibilityAddTraits(.isButton)
                 }
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 14) {
+                        Button {
+                            yearView = true
+                            showingMonthStyles = false
+                        } label: {
+                            Text("Year").fontWeight(yearView ? .semibold : .regular)
+                                .opacity(yearView ? 1 : 0.5)
+                        }
+                        .accessibilityAddTraits(yearView ? .isSelected : [])
+                        Button {
+                            withAnimation(.easeOut(duration: 0.16)) { showingMonthStyles.toggle() }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text("Month")
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 8, weight: .semibold))
+                                    .rotationEffect(.degrees(showingMonthStyles ? 180 : 0))
+                            }
+                            .fontWeight(yearView ? .regular : .semibold)
+                            .opacity(yearView && !showingMonthStyles ? 0.5 : 1)
+                        }
+                        .accessibilityLabel("Month designs")
+                        .accessibilityValue(showingMonthStyles ? "Expanded" : "Collapsed")
+                        .accessibilityAddTraits(yearView ? [] : .isSelected)
+                        Spacer()
+                        wordmark
+                    }
+                    .font(.system(size: 12))
+                    .foregroundStyle(hasSky && headerImage != nil && !showingMonthStyles ? .white : .black)
+                    .frame(height: 44)
+                    if showingMonthStyles {
+                        VStack(spacing: 0) {
+                            Rectangle().frame(height: 1)
+                            ForEach(Array(["Classic", "Sky", "Poster"].enumerated()), id: \.offset) { index, name in
+                                let style = name == "Classic" ? "Month v1" : name == "Sky" ? "Month v2" : "Poster"
+                                Button {
+                                    monthlyStyle = style
+                                    yearView = false
+                                    withAnimation(.easeOut(duration: 0.16)) { showingMonthStyles = false }
+                                } label: {
+                                    HStack(alignment: .firstTextBaseline, spacing: 16) {
+                                        Text(String(format: "%02d", index + 1))
+                                            .font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
+                                        Text(name).font(.system(size: 12, weight: .semibold))
+                                        Spacer()
+                                        if monthlyStyle == style {
+                                            Circle().fill(.black).frame(width: 6, height: 6)
+                                                .accessibilityHidden(true)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(monthlyStyle == style ? .isSelected : [])
+                                Rectangle().fill(.black.opacity(index == 2 ? 1 : 0.12)).frame(height: index == 2 ? 1 : 0.5)
+                            }
+                        }
+                        .foregroundStyle(.black)
+                        .transition(.opacity.combined(with: .offset(y: -4)))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, showingMonthStyles ? 16 : 0)
+                .background { if showingMonthStyles { paper } }
             }
-            .font(.system(size: 12))
-            .foregroundStyle(hasSky && headerImage != nil ? .white : .black)
-            .padding(.leading, 16).padding(.top, 16)
         }
         .foregroundStyle(.black)
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { today = $0 }
-        .fullScreenCover(isPresented: $camera) { CameraView { url in store.saveGIF(url, on: captureDate) } }
+        .fullScreenCover(isPresented: $showingSettings) { StorageSettingsView() }
+        .fullScreenCover(isPresented: $camera, onDismiss: {
+            guard let url = pendingPhotosCopy else { return }
+            if photosCopyPreference == "unasked" {
+                showPhotosChoice = true
+            } else if photosCopyPreference == "enabled" {
+                let date = pendingPhotosDate
+                pendingPhotosCopy = nil
+                Task { await store.saveCopyToPhotos(url, date: date) }
+            } else {
+                pendingPhotosCopy = nil
+            }
+        }) {
+            CameraView { url in
+                guard store.saveGIF(url, on: captureDate) else { return false }
+                pendingPhotosCopy = store.directory.appendingPathComponent(store.key(captureDate) + ".gif")
+                pendingPhotosDate = captureDate
+                return true
+            }
+        }
+        .alert("Keep a copy in Photos?", isPresented: $showPhotosChoice) {
+            Button("Save to Photos") {
+                photosCopyPreference = "enabled"
+                if let url = pendingPhotosCopy {
+                    let date = pendingPhotosDate
+                    pendingPhotosCopy = nil
+                    Task { await store.saveCopyToPhotos(url, date: date) }
+                }
+            }
+            Button("Keep in LookUp", role: .cancel) {
+                photosCopyPreference = "disabled"
+                pendingPhotosCopy = nil
+            }
+        } message: {
+            Text("Your skies are saved in LookUp. Save a copy to Photos, too. Your choice will apply to future skies.")
+        }
         .fullScreenCover(item: $selected) { entry in
             NavigationStack {
                 EntryView(entry: entry).environmentObject(store)
@@ -339,23 +460,32 @@ struct CalendarView: View {
             let side = (geometry.size.width - 44) / 7
             let weekCount = (offset + days.count + 6) / 7
             VStack(alignment: .leading, spacing: 0) {
-                HStack { Spacer(); wordmark }.padding(.top, 46)
+                Color.clear.frame(height: 24).padding(.top, 12)
                 HStack {
                     Text(month.formatted(.dateTime.month(.twoDigits)))
-                        .font(.system(size: blocks ? 110 : 48, weight: .black)).tracking(-5)
+                        .font(.system(size: blocks ? 110 : 48, weight: blocks ? .black : .bold)).tracking(blocks ? -5 : -2)
                     Spacer()
                     Text("’" + String(calendar.component(.year, from: month) % 100))
                         .font(.system(size: blocks ? 24 : 48, weight: .bold)).tracking(-2)
-                }.padding(.top, 18)
+                }.frame(height: 65).padding(.top, 32)
                 if !blocks {
                     Rectangle().frame(height: 1).padding(.vertical, 12)
-                    Text(month.formatted(.dateTime.month(.abbreviated)).uppercased())
-                        .font(.system(size: 140, weight: .black)).tracking(-9)
-                        .minimumScaleFactor(0.5).lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                    HStack(spacing: 12) {
+                        Button { move(-1) } label: {
+                            Image(systemName: "chevron.left").frame(width: 44, height: 44, alignment: .leading)
+                        }.accessibilityLabel("Previous month")
+                        Text(month.formatted(.dateTime.month(.abbreviated)).uppercased())
+                            .font(.system(size: 140, weight: .semibold)).tracking(-6)
+                            .minimumScaleFactor(0.5).lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                        Button { move(1) } label: {
+                            Image(systemName: "chevron.right").frame(width: 44, height: 44, alignment: .trailing)
+                        }.accessibilityLabel("Next month")
+                    }
+
                 }
                 if blocks { Color.clear.frame(height: 16) }
-                else { Spacer(minLength: 12) }
+                else { Color.clear.frame(height: 16) }
                 HStack(spacing: 2) {
                     ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, name in
                         Text(name).font(.system(size: blocks ? 10 : 25, weight: .bold))
@@ -379,6 +509,7 @@ struct CalendarView: View {
                         }
                     }
                 }
+                if blocks {
                 HStack {
                     Button { move(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44, alignment: .leading) }
                         .accessibilityLabel("Previous month")
@@ -391,7 +522,8 @@ struct CalendarView: View {
                     Button { move(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44, alignment: .trailing) }
                         .accessibilityLabel("Next month")
                 }.padding(.top, 18)
-                if blocks { Spacer(minLength: 0) }
+                }
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 16).padding(.bottom, 18)
             .frame(width: geometry.size.width, height: geometry.size.height)
@@ -408,10 +540,15 @@ struct CalendarView: View {
                     Image(uiImage: image).resizable().scaledToFill()
                 }
                 if store.entry(day) == nil {
+                if calendar.isDate(day, inSameDayAs: today) {
+                    Image(systemName: "plus").font(.system(size: 25, weight: .regular))
+                        .foregroundStyle(blocks ? .white : .black)
+                } else {
                 Text("\(calendar.component(.day, from: day))")
                     .font(.system(size: blocks ? 10 : 31, weight: .bold))
                     .foregroundStyle(blocks || store.entry(day) != nil ? .white : .black)
                     .shadow(color: store.entry(day) != nil ? .black.opacity(0.5) : .clear, radius: 2)
+                }
                 }
             }
             .frame(width: side - (blocks ? 1 : 0), height: side - (blocks ? 1 : 0))
@@ -427,7 +564,7 @@ struct CalendarView: View {
         GeometryReader { geometry in
         let circleSize = min(22, max(14, (geometry.size.height - 140) / 27))
         VStack(alignment: .leading, spacing: 10) {
-            HStack { Spacer(); wordmark }.padding(.top, 12)
+            Color.clear.frame(height: 24).padding(.top, 12)
             HStack {
                 Text(month.formatted(.dateTime.year())).font(.system(size: 54, weight: .bold)).tracking(-2)
                 Spacer()
@@ -435,7 +572,8 @@ struct CalendarView: View {
                     .accessibilityLabel("Previous year")
                 Button { moveYear(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
                     .accessibilityLabel("Next year")
-            }.padding(.top, 8)
+            }.padding(.top, 8).offset(y: 14)
+                Spacer(minLength: 0)
                 YearFlowLayout(spacing: 1) {
                     ForEach(1...12, id: \.self) { number in
                         let start = calendar.date(from: DateComponents(year: calendar.component(.year, from: month), month: number, day: 1))!
@@ -452,6 +590,8 @@ struct CalendarView: View {
                                 ZStack {
                                     if let entry = store.entry(day), let image = store.image(entry) {
                                         Image(uiImage: image).resizable().scaledToFill()
+                                    } else if calendar.isDate(day, inSameDayAs: today) {
+                                        Image(systemName: "plus").font(.system(size: 12, weight: .regular))
                                     } else {
                                         Text("\(index + 1)").font(.system(size: 10, weight: .regular))
                                             .foregroundStyle(.black.opacity(day > today ? 0.25 : 0.7))
@@ -480,7 +620,7 @@ struct CalendarView: View {
     }
     func openCamera(on date: Date) {
         guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
-            store.error = "Camera is unavailable on this device. Use Above on an iPhone to record your sky."
+            store.error = "Camera is unavailable on this device. Use LookUp on an iPhone to record your sky."
             return
         }
         captureDate = date
@@ -526,6 +666,61 @@ struct CalendarView: View {
     func move(_ amount: Int) { month = calendar.date(byAdding: .month, value: amount, to: monthStart)! }
 }
 
+struct StorageSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @AppStorage("photosCopyPreference") private var photosCopyPreference = "unasked"
+    @State private var checkingPermission = false
+    @State private var permissionDenied = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Button { dismiss() } label: {
+                    Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
+                }.accessibilityLabel("Back")
+                Spacer()
+                Text("LookUp").font(.system(size: 12, weight: .semibold))
+            }
+            Text("your skies.").font(.system(size: 36, weight: .bold)).tracking(-1)
+                .padding(.top, 36).padding(.bottom, 32)
+            Rectangle().frame(height: 1)
+            Toggle(isOn: Binding(get: { photosCopyPreference == "enabled" }, set: { enabled in
+                if !enabled { photosCopyPreference = "disabled"; return }
+                checkingPermission = true
+                Task { @MainActor in
+                    let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+                    checkingPermission = false
+                    if status == .authorized || status == .limited {
+                        photosCopyPreference = "enabled"
+                    } else {
+                        photosCopyPreference = "disabled"
+                        permissionDenied = true
+                    }
+                }
+            })) {
+                Text("Save a copy to Photos").font(.system(size: 16, weight: .semibold))
+            }
+            .tint(.black).disabled(checkingPermission).padding(.vertical, 20)
+            Rectangle().fill(.black.opacity(0.15)).frame(height: 0.5)
+            Text("New skies will also be saved to Photos as moving GIFs. Your existing records stay where they are.")
+                .font(.system(size: 14)).foregroundStyle(.secondary).lineSpacing(4).padding(.top, 18)
+            Text("Your skies and notes are always saved in LookUp on this iPhone. Turning this off keeps future captures in LookUp only.")
+                .font(.system(size: 14)).foregroundStyle(.secondary).lineSpacing(4).padding(.top, 16)
+            Spacer()
+        }
+        .padding(.horizontal, 28).padding(.top, 12).padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity).background(paper).foregroundStyle(.black)
+        .alert("Allow Photos access", isPresented: $permissionDenied) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            }
+            Button("Not now", role: .cancel) { }
+        } message: {
+            Text("Allow LookUp to add to Photos in Settings. Your records in LookUp are safe either way.")
+        }
+    }
+}
+
 struct EntryView: View {
     @EnvironmentObject var store: SkyStore
     @Environment(\.dismiss) var dismiss
@@ -558,7 +753,7 @@ struct EntryView: View {
                         Spacer()
                         Button { confirmDelete = true } label: {
                             Image(systemName: "trash")
-                                .font(.system(size: 20))
+                                .font(.system(size: 15))
                                 .frame(width: 44, height: 44, alignment: .trailing)
                                 .contentShape(Rectangle())
                         }.accessibilityLabel("Delete photo")
@@ -577,7 +772,7 @@ struct EntryView: View {
                         .padding(.top, max(24, (pageHeight - side) / 2 - 156))
                     ZStack(alignment: .topLeading) {
                         if draft.isEmpty {
-                            Text("A few words about this sky…")
+                            Text("leave a little thought…")
                                 .font(.system(size: 21)).foregroundStyle(.tertiary)
                                 .padding(.top, 8).allowsHitTesting(false)
                         }
@@ -715,7 +910,7 @@ struct InlineNoteInput: UIViewRepresentable {
         guard !cancelled, session.inputs.isEmpty else { return }
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device) else {
-            message = "A camera is needed to record your sky. Try Above on your iPhone."
+            message = "A camera is needed to record your sky. Try LookUp on your iPhone."
             return
         }
         session.beginConfiguration()
@@ -908,7 +1103,7 @@ struct CameraView: View {
                         Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
                     }.accessibilityLabel("Back")
                     Spacer()
-                    Text("above").font(.system(size: 26, weight: .medium)).tracking(-0.6)
+                    Text("LookUp").font(.system(size: 12, weight: .semibold))
                 }
                 Spacer(minLength: 20)
                 Button { camera.record() } label: {
@@ -1013,5 +1208,16 @@ struct YearFlowLayout: Layout {
         for (index, view) in subviews.enumerated() {
             view.place(at: CGPoint(x: bounds.minX + points[index].x, y: bounds.minY + points[index].y), anchor: .topLeading, proposal: .unspecified)
         }
+    }
+}
+
+/// A compact, stepped wordmark with softly rounded pixel strokes.
+struct AboveWordmark: View {
+    var height: CGFloat = 20
+    var body: some View {
+        Text("LookUp")
+            .font(.system(size: height, weight: .regular))
+            .tracking(-height * 2 / 85)
+            .accessibilityLabel("LookUp")
     }
 }

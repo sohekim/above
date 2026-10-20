@@ -51,3 +51,9 @@ The visible selector is Month v1 / Month v2 / Year / Poster. Month v1 always use
 Month v2 uses a bold uppercase 24-point month-and-year heading, bold weekday labels, and semibold navigation chevrons to match the other editorial layouts.
 
 The camera circle fills more of the screen width. Tap during recording to pause; tap again to resume. Only captured time counts toward ten seconds. Paused segments are joined for GIF generation, excluding the pause.
+
+After the first successful capture, Above asks whether to keep an animated GIF copy in Photos. The choice persists for future captures. Photos add-only authorization is requested only after Save to Photos is chosen. The app-local GIF is saved first and remains available if Photos permission is denied or export fails. Samples do not trigger this prompt.
+
+The user-facing app name is LookUp, including the wordmark, home-screen display name, and save-copy messaging. The existing bundle identifier and storage paths are preserved so installed records remain available.
+
+Tap the LookUp wordmark to open storage settings and change automatic Photos copies for future captures. Enabling requests add-only Photos access; denied access offers a Settings link. Sample seeding is disabled in all physical-device and Release builds, and in Simulator is opt-in via the Debug --sample-skies launch argument. Existing records are not removed.
