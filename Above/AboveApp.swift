@@ -281,7 +281,7 @@ struct CalendarView: View {
     @AppStorage("backgroundPalette") private var backgroundChoice = "Paper"
     @AppStorage("inkPalette") private var inkChoice = "Black"
     @AppStorage("monthlyCalendarStyle") private var monthlyStyle = "Poster"
-    private var calendarStyle: String { yearView ? "Year" : monthlyStyle }
+    private var calendarStyle: String { yearView ? "Year" : (monthlyStyle == "Notebook" ? "Month v1" : monthlyStyle) }
     @State private var captureDate = Date()
     @AppStorage("photosCopyPreference") private var photosCopyPreference = "unasked"
     @State private var pendingPhotosCopy: URL?
@@ -322,8 +322,6 @@ struct CalendarView: View {
             yearlyCalendar
         } else if calendarStyle == "Poster" {
             graphicCalendar(blocks: false)
-        } else if calendarStyle == "Notebook" {
-            notebookCalendar
         } else if calendarStyle == "Month v1" {
             classicCalendar
         } else {
@@ -466,7 +464,7 @@ struct CalendarView: View {
                     .frame(height: 44)
                     if showingMonthStyles {
                         VStack(spacing: 0) {
-                            ForEach(Array(["Classic", "Sky", "Poster", "Notebook"].enumerated()), id: \.offset) { index, name in
+                            ForEach(Array(["Classic", "Sky", "Poster"].enumerated()), id: \.offset) { index, name in
                                 let style = name == "Classic" ? "Month v1" : name == "Sky" ? "Month v2" : name
                                 Button {
                                     monthlyStyle = style
@@ -488,7 +486,7 @@ struct CalendarView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityAddTraits(monthlyStyle == style ? .isSelected : [])
-                                if index < 3 {
+                                if index < 2 {
                                     Rectangle().fill(appInk.opacity(0.12)).frame(height: 0.5)
                                 }
                             }
@@ -649,104 +647,6 @@ struct CalendarView: View {
                         }
                     }
                 }
-        }
-    }
-
-    var notebookCalendar: some View {
-        GeometryReader { geometry in
-            let blue = Color(red: 0.12, green: 0.40, blue: 0.73)
-            let rule = Color(red: 0.80, green: 0.36, blue: 0.22)
-            let width = geometry.size.width - 32
-            let cell = width / 7
-            VStack(spacing: 0) {
-                Color.clear.frame(height: 64)
-                Path { path in
-                    let step = (width - 10) / 28
-                    path.move(to: CGPoint(x: 0, y: 17))
-                    for index in 0..<28 {
-                        let x = CGFloat(index) * step
-                        let wobble: CGFloat = index % 3 == 0 ? 1 : -0.5
-                        path.addCurve(to: CGPoint(x: x + step * 0.5, y: 3 + wobble),
-                                      control1: CGPoint(x: x - step * 0.25, y: 4),
-                                      control2: CGPoint(x: x + step * 0.15, y: -1))
-                        path.addCurve(to: CGPoint(x: x + step, y: 17),
-                                      control1: CGPoint(x: x + step * 0.95, y: 7),
-                                      control2: CGPoint(x: x + step * 1.1, y: 21))
-                    }
-                }
-                .stroke(Color(red: 0.24, green: 0.43, blue: 0.28),
-                        style: StrokeStyle(lineWidth: 1.3, lineCap: .round, lineJoin: .round))
-                .frame(height: 20)
-                .padding(.horizontal, 5).padding(.bottom, 8)
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(month.formatted(.dateTime.month(.twoDigits)))
-                        .tracking(-5)
-                    Spacer(minLength: 0)
-                    Text(month.formatted(.dateTime.month(.abbreviated)).uppercased())
-                        .tracking(-4)
-                }
-                .font(.system(size: width * 0.23, weight: .regular))
-                .lineLimit(1).minimumScaleFactor(0.5)
-                .padding(.horizontal, 6).padding(.vertical, 10)
-                .overlay(alignment: .bottom) { Rectangle().fill(rule).frame(height: 0.8) }
-                HStack(spacing: 0) {
-                    ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, title in
-                        Text(title).font(.system(size: 20, weight: .regular)).padding(.leading, 6)
-                            .frame(width: cell, height: 34, alignment: .leading)
-                            .overlay { Rectangle().stroke(rule, lineWidth: 0.4) }
-                    }
-                }
-                ForEach(0..<6, id: \.self) { row in
-                    HStack(spacing: 0) {
-                        ForEach(0..<7, id: \.self) { column in
-                            let index = row * 7 + column - offset
-                            ZStack(alignment: .topLeading) {
-                                if index >= 0 && index < days.count {
-                                    let day = days[index]
-                                    Button {
-                                        if let entry = store.entry(day) { selected = entry }
-                                        else { openCamera(on: day) }
-                                    } label: {
-                                        ZStack(alignment: .topLeading) {
-                                            if let entry = store.entry(day), let image = store.image(entry) {
-                                                Image(uiImage: image).resizable().scaledToFill()
-                                                    .frame(width: cell, height: cell * 1.12).clipped()
-                                            }
-                                            if store.entry(day) == nil {
-                                                Text("\(calendar.component(.day, from: day))")
-                                                    .font(.system(size: 23, weight: .regular))
-                                                    .foregroundStyle(blue)
-                                                    .padding(.leading, 5).padding(.top, 3)
-                                            }
-                                            if calendar.isDateInToday(day) && store.entry(day) == nil {
-                                                Image(systemName: "plus").font(.system(size: 17, weight: .light))
-                                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                                                    .padding(7)
-                                            }
-                                        }.frame(width: cell, height: cell * 1.12, alignment: .topLeading)
-                                    }.buttonStyle(.plain)
-                                        .disabled(!calendar.isDateInToday(day) && store.entry(day) == nil)
-                                        .accessibilityLabel(day.formatted(.dateTime.month().day()))
-                                }
-                            }.frame(width: cell, height: cell * 1.12)
-                                .overlay { Rectangle().stroke(rule, lineWidth: 0.4).allowsHitTesting(false) }
-                        }
-                    }
-                }
-                .overlay { Color.clear }
-                HStack {
-                    Button { move(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
-                    Spacer()
-                    Text(month.formatted(.dateTime.year())).font(.system(size: 12))
-                    Spacer()
-                    Button { move(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
-                }.font(.system(size: 14, weight: .regular)).padding(.top, 12)
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(blue)
-            .padding(.horizontal, 16)
-            .frame(width: geometry.size.width, height: geometry.size.height)
-            .background(paper)
         }
     }
 

@@ -61,7 +61,7 @@ Tap the LookUp wordmark to open storage settings and change automatic Photos cop
 
 ## Current calendar and appearance controls
 
-- Month designs: Classic, Sky, Poster, and Notebook. Classic and Sky share the same circle grid and reserve six weeks so month changes do not shift the layout.
+- Month designs: Classic, Sky, and Poster. Classic and Sky share the same circle grid and reserve six weeks so month changes do not shift the layout.
 - Above settings contains the inline Palette editor. Background and type colors are previewed separately and applied only after Save. Empty circles follow the selected background with a subtle gray mix.
 - New captures are limited to today. Existing records remain accessible in every calendar.
 - Local daily sky reminders default to 6 PM, with an editable time and optional notification permission. The app schedules up to 60 days ahead, refreshes on activation and record changes, and omits days with actual recordings. Preview samples do not count as recordings. No server or account is required.
