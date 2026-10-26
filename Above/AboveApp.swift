@@ -105,6 +105,7 @@ struct SkyEntry: Codable, Identifiable {
         if ProcessInfo.processInfo.arguments.contains("--sample-skies") { seedSamples() }
         #endif
         SkyReminder.shared.refresh(entries: entries)
+        publishWidget()
     }
     private func seedSamples() {
         guard !UserDefaults.standard.bool(forKey: "seededSkySamplesV1") else { return }
@@ -133,6 +134,13 @@ struct SkyEntry: Codable, Identifiable {
     func persist() throws {
         try JSONEncoder().encode(entries).write(to: directory.appendingPathComponent("entries.json"), options: .atomic)
         SkyReminder.shared.refresh(entries: entries)
+        publishWidget()
+    }
+    func publishWidget() {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
+        WidgetSkySnapshot.publish(entries.filter { $0.date >= cutoff }.compactMap { entry in
+            image(entry).map { (entry.date, $0) }
+        }, background: UIColor(paper), ink: UIColor(appInk))
     }
     func save(_ image: UIImage, on date: Date) {
         let id = key(date)
@@ -220,7 +228,10 @@ struct SkyEntry: Codable, Identifiable {
     var body: some Scene {
         WindowGroup { AboveRootView().background((backgroundPalette.first { $0.0 == backgroundChoice }?.1 ?? paper).ignoresSafeArea()).tint(inkPalette.first { $0.0 == inkChoice }?.1 ?? appInk).environmentObject(store).preferredColorScheme(.light)
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { SkyReminder.shared.refresh(entries: store.entries) }
+                if phase == .active {
+                    SkyReminder.shared.refresh(entries: store.entries)
+                    store.publishWidget()
+                }
             }
         }
     }
@@ -502,6 +513,17 @@ struct CalendarView: View {
         }
         .foregroundStyle(appInk)
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { today = $0 }
+        .onOpenURL { url in
+            guard url.scheme == "above" else { return }
+            if url.host == "entry",
+               let key = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "date" })?.value,
+               let entry = store.entries.first(where: { $0.id == key }) {
+                selected = entry
+            } else if url.host == "capture" {
+                today = Date()
+                openCamera(on: today)
+            }
+        }
         .fullScreenCover(isPresented: $showingSettings) { StorageSettingsView() }
         .fullScreenCover(isPresented: $camera, onDismiss: {
             guard let url = pendingPhotosCopy else { return }
@@ -848,6 +870,7 @@ struct CalendarView: View {
 }
 
 struct PaletteEditor: View {
+    @EnvironmentObject private var store: SkyStore
     @AppStorage("backgroundPalette") private var backgroundChoice = "Paper"
     @AppStorage("inkPalette") private var inkChoice = "Black"
     @State private var draftBackground = "Paper"
@@ -860,6 +883,7 @@ struct PaletteEditor: View {
                 Button {
                     backgroundChoice = draftBackground
                     inkChoice = draftInk
+                    store.publishWidget()
                 } label: {
                     Text("Save").font(.system(size: 13, weight: .medium))
                         .frame(height: 32)
