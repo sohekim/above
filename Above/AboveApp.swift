@@ -3,8 +3,40 @@ import Photos
 import UIKit
 @preconcurrency import AVFoundation
 import ImageIO
+import UserNotifications
 
-private let paper = Color(white: 0.98)
+private let backgroundPalette: [(String, Color)] = [
+    ("Paper", Color(red: 0.985, green: 0.98, blue: 0.965)),
+    ("Blue", Color(red: 0.88, green: 0.91, blue: 0.98)),
+    ("Pink", Color(red: 0.85, green: 0.78, blue: 0.79)),
+    ("Mint", Color(red: 0.86, green: 0.95, blue: 0.90)),
+    ("Green", Color(red: 0.87, green: 0.93, blue: 0.84)),
+    ("Yellow", Color(red: 1.0, green: 0.985, blue: 0.84))
+]
+private let inkPalette: [(String, Color)] = [
+    ("Black", .black),
+    ("Blue", Color(red: 0.16, green: 0.32, blue: 0.64)),
+    ("Pink", Color(red: 0.89, green: 0.22, blue: 0.43)),
+    ("Mint", Color(red: 0.16, green: 0.47, blue: 0.40)),
+    ("Green", Color(red: 0.36, green: 0.72, blue: 0.46)),
+    ("Red", Color(red: 0.74, green: 0.12, blue: 0.17)),
+    ("Brown", Color(red: 0.34, green: 0.26, blue: 0.16))
+]
+private var appInk: Color {
+    inkPalette.first { $0.0 == UserDefaults.standard.string(forKey: "inkPalette") }?.1 ?? .black
+}
+private var paper: Color {
+    backgroundPalette.first { $0.0 == UserDefaults.standard.string(forKey: "backgroundPalette") }?.1 ?? backgroundPalette[0].1
+}
+
+private func emptySkyColor(grayAmount: CGFloat = 0.09) -> Color {
+    var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+    UIColor(paper).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+    let gray: CGFloat = 0.58
+    return Color(red: Double(red * (1 - grayAmount) + gray * grayAmount),
+                 green: Double(green * (1 - grayAmount) + gray * grayAmount),
+                 blue: Double(blue * (1 - grayAmount) + gray * grayAmount))
+}
 
 struct SkyEntry: Codable, Identifiable {
     var id: String
@@ -12,6 +44,49 @@ struct SkyEntry: Codable, Identifiable {
     var note: String
     var isSample: Bool? = nil
     var isGIF: Bool? = nil
+}
+
+@MainActor final class SkyReminder {
+    static let shared = SkyReminder()
+    private var updateTask: Task<Void, Never>?
+    private let prefix = "above.sky."
+
+    func refresh(entries: [SkyEntry]) {
+        let previous = updateTask
+        previous?.cancel()
+        updateTask = Task {
+            await previous?.value
+            guard !Task.isCancelled else { return }
+            let center = UNUserNotificationCenter.current()
+            let pending = await center.pendingNotificationRequests()
+            center.removePendingNotificationRequests(withIdentifiers: pending.map(\.identifier).filter { $0.hasPrefix(prefix) })
+            guard UserDefaults.standard.bool(forKey: "skyReminderEnabled"), !Task.isCancelled else { return }
+            let settings = await center.notificationSettings()
+            guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+            let defaults = UserDefaults.standard
+            let hour = defaults.object(forKey: "skyReminderHour") as? Int ?? 18
+            let minute = defaults.integer(forKey: "skyReminderMinute")
+            let calendar = Calendar.current
+            let now = Date()
+            // Reserve four of iOS's 64 pending notification slots for other app uses.
+            for offset in 0..<60 {
+                guard !Task.isCancelled,
+                      let day = calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: now)),
+                      let fireDate = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day),
+                      fireDate > now,
+                      !entries.contains(where: { $0.isSample != true && calendar.isDate($0.date, inSameDayAs: day) }) else { continue }
+                let parts = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+                let identifier = "\(prefix)\(parts.year!)-\(parts.month!)-\(parts.day!)"
+                let content = UNMutableNotificationContent()
+                content.title = "A moment above."
+                content.body = "You haven’t captured today’s sky yet. Take a moment to look up."
+                content.sound = .default
+                let trigger = UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)
+                do { try await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)) }
+                catch { return }
+            }
+        }
+    }
 }
 
 @MainActor final class SkyStore: ObservableObject {
@@ -29,6 +104,7 @@ struct SkyEntry: Codable, Identifiable {
         #if DEBUG && targetEnvironment(simulator)
         if ProcessInfo.processInfo.arguments.contains("--sample-skies") { seedSamples() }
         #endif
+        SkyReminder.shared.refresh(entries: entries)
     }
     private func seedSamples() {
         guard !UserDefaults.standard.bool(forKey: "seededSkySamplesV1") else { return }
@@ -54,7 +130,10 @@ struct SkyEntry: Codable, Identifiable {
     }
     func entry(_ date: Date) -> SkyEntry? { entries.first { $0.id == key(date) } }
     func image(_ entry: SkyEntry) -> UIImage? { UIImage(contentsOfFile: directory.appendingPathComponent(entry.id + ".jpg").path) }
-    func persist() throws { try JSONEncoder().encode(entries).write(to: directory.appendingPathComponent("entries.json"), options: .atomic) }
+    func persist() throws {
+        try JSONEncoder().encode(entries).write(to: directory.appendingPathComponent("entries.json"), options: .atomic)
+        SkyReminder.shared.refresh(entries: entries)
+    }
     func save(_ image: UIImage, on date: Date) {
         let id = key(date)
         do {
@@ -101,7 +180,7 @@ struct SkyEntry: Codable, Identifiable {
     func saveCopyToPhotos(_ url: URL, date: Date) async {
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {
-            error = "Your sky is saved in LookUp. Allow Photos access in Settings to save a copy there."
+            error = "Your sky is saved in Above. Allow Photos access in Settings to save a copy there."
             return
         }
         do {
@@ -109,12 +188,12 @@ struct SkyEntry: Codable, Identifiable {
                 let request = PHAssetCreationRequest.forAsset()
                 request.creationDate = date
                 let options = PHAssetResourceCreationOptions()
-                options.originalFilename = "LookUp-\(url.lastPathComponent)"
+                options.originalFilename = "Above-\(url.lastPathComponent)"
                 options.uniformTypeIdentifier = "com.compuserve.gif"
                 request.addResource(with: .photo, fileURL: url, options: options)
             }
         } catch {
-            self.error = "Your sky is saved in LookUp, but the copy couldn’t be saved to Photos."
+            self.error = "Your sky is saved in Above, but the copy couldn’t be saved to Photos."
         }
     }
     func update(_ id: String, note: String) {
@@ -134,9 +213,16 @@ struct SkyEntry: Codable, Identifiable {
 }
 
 @main struct AboveApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("backgroundPalette") private var backgroundChoice = "Paper"
+    @AppStorage("inkPalette") private var inkChoice = "Black"
     @StateObject private var store = SkyStore()
     var body: some Scene {
-        WindowGroup { AboveRootView().environmentObject(store).preferredColorScheme(.light) }
+        WindowGroup { AboveRootView().background((backgroundPalette.first { $0.0 == backgroundChoice }?.1 ?? paper).ignoresSafeArea()).tint(inkPalette.first { $0.0 == inkChoice }?.1 ?? appInk).environmentObject(store).preferredColorScheme(.light)
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { SkyReminder.shared.refresh(entries: store.entries) }
+            }
+        }
     }
 }
 
@@ -157,7 +243,7 @@ struct WelcomeView: View {
         GeometryReader { geometry in
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text("LookUp").font(.system(size: 12, weight: .semibold))
+                    Text("Above").font(.system(size: 12, weight: .semibold))
                     Spacer()
                 }
                 Spacer(minLength: 24)
@@ -181,7 +267,7 @@ struct WelcomeView: View {
             }
             .padding(.horizontal, 28).padding(.top, 18).padding(.bottom, 24)
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)
-            .background(paper).foregroundStyle(.black)
+            .background(paper).foregroundStyle(appInk)
         }
     }
 }
@@ -192,6 +278,8 @@ struct CalendarView: View {
     @State private var yearView = true
     @State private var showingMonthStyles = false
     @State private var showingSettings = false
+    @AppStorage("backgroundPalette") private var backgroundChoice = "Paper"
+    @AppStorage("inkPalette") private var inkChoice = "Black"
     @AppStorage("monthlyCalendarStyle") private var monthlyStyle = "Poster"
     private var calendarStyle: String { yearView ? "Year" : monthlyStyle }
     @State private var captureDate = Date()
@@ -212,9 +300,9 @@ struct CalendarView: View {
             showingMonthStyles = false
             showingSettings = true
         } label: {
-            Text("LookUp").font(.system(size: 12, weight: .semibold))
+            Text("Above").font(.system(size: 12, weight: .semibold))
         }
-        .accessibilityLabel("LookUp settings")
+        .accessibilityLabel("Above settings")
             #if targetEnvironment(simulator)
             .contextMenu {
                 Button("Preview introduction") {
@@ -234,57 +322,61 @@ struct CalendarView: View {
             yearlyCalendar
         } else if calendarStyle == "Poster" {
             graphicCalendar(blocks: false)
+        } else if calendarStyle == "Notebook" {
+            notebookCalendar
+        } else if calendarStyle == "Month v1" {
+            classicCalendar
         } else {
         GeometryReader { geometry in
             let photoSize = max(20, min((geometry.size.width - 50) / 7,
                                        (geometry.size.height - 290) / 6 - 4))
-            let rows = (offset + days.count + 6) / 7
-            let reservedRows = hasSky ? 6 : rows
-            let gridHeight = 24 + CGFloat(reservedRows) * photoSize + CGFloat(reservedRows - 1) * 4
+            let reservedRows = 6
+            let gridHeight = 23 + CGFloat(reservedRows) * (photoSize + 4) + CGFloat(reservedRows - 1) * 5
             let fullHeight = geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom
-            let capturedHeaderHeight = max(52, geometry.size.height - gridHeight - 90)
+            let capturedHeaderHeight = max(120, min(geometry.size.width - 32, geometry.size.height - gridHeight - 140)) + 64
             let emptyHeaderHeight = max(52, geometry.size.height - gridHeight - 250 - 32 - fullHeight * 0.05)
             VStack(alignment: .leading, spacing: 0) {
                 GeometryReader { header in
-                    Group {
-                        let todayImage = hasSky ? headerImage : nil
-                        ZStack(alignment: .topTrailing) {
-                        ZStack {
-                            paper
-                            if hasSky && todayImage == nil {
-                                LinearGradient(
-                                    colors: [Color(red: 0.80, green: 0.89, blue: 0.97),
-                                             Color(red: 0.91, green: 0.95, blue: 0.99),
-                                             Color(white: 0.98)],
-                                    startPoint: .top, endPoint: .bottom)
-                            }
-                            if let todayImage {
-                                Image(uiImage: todayImage).resizable().scaledToFill()
+                    let image = headerImage
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: 48)
+                        Group {
+                            if let image {
+                                Image(uiImage: image).resizable().scaledToFill()
+                            } else {
+                                ZStack {
+                                    LinearGradient(
+                                        colors: [emptySkyColor(grayAmount: 0.13),
+                                                 emptySkyColor(grayAmount: 0.06)],
+                                        startPoint: .top, endPoint: .bottom)
+                                    Text("Today’s sky is waiting.")
+                                        .font(.system(size: 15, weight: .regular))
+                                        .foregroundStyle(Color(red: 0.59, green: 0.61, blue: 0.63))
+                                        .multilineTextAlignment(.center)
+                                        .padding(24)
+                                }
                             }
                         }
-                        .frame(width: header.size.width,
-                               height: max(0, header.size.height + geometry.safeAreaInsets.top))
+                        .frame(width: header.size.width, height: max(0, header.size.height - 64))
                         .clipped()
-                        .offset(y: -geometry.safeAreaInsets.top)
-                        .accessibilityLabel(todayImage == nil ? "Today’s sky, waiting to be captured" : "Today’s captured sky")
-                        }.frame(width: header.size.width, height: header.size.height, alignment: .top)
+                        .accessibilityLabel(headerImage == nil ? "Today’s sky is waiting." : "Today’s captured sky")
+                        Color.clear.frame(height: 16)
                     }
                 }
                 .frame(height: hasSky ? capturedHeaderHeight : emptyHeaderHeight)
                 .frame(minHeight: 52)
-                .padding(.horizontal, -16)
                 HStack(spacing: 12) {
                     if hasSky {
-                        Text("\(month.formatted(.dateTime.month(.abbreviated)).lowercased()) ’\(String(format: "%02d", calendar.component(.year, from: month) % 100))")
-                            .font(.system(size: 24, weight: .bold)).tracking(-0.8)
+                        Text(month.formatted(.dateTime.month(.wide)))
+                            .font(.system(size: 24, weight: .medium)).tracking(-0.4)
                             .lineLimit(1).minimumScaleFactor(0.75)
                             .accessibilityAddTraits(.isHeader)
                         Spacer()
                         Button { move(-1) } label: {
-                            Image(systemName: "chevron.left").font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44)
+                            Image(systemName: "chevron.left").font(.system(size: 17, weight: .regular)).frame(width: 44, height: 44)
                         }.accessibilityLabel("Previous month")
                         Button { move(1) } label: {
-                            Image(systemName: "chevron.right").font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44, alignment: .trailing)
+                            Image(systemName: "chevron.right").font(.system(size: 17, weight: .regular)).frame(width: 44, height: 44, alignment: .trailing)
                         }.accessibilityLabel("Next month")
                     } else {
                         Button { move(-1) } label: {
@@ -298,7 +390,7 @@ struct CalendarView: View {
                         }.accessibilityLabel("Next month")
                     }
                 }.padding(.top, 12).padding(.bottom, 12)
-                skyGrid(photoSize: photoSize)
+                skyGrid(photoSize: photoSize, width: geometry.size.width - 32)
                     .frame(height: hasSky ? gridHeight : nil, alignment: .top)
                 if !hasSky {
                 VStack(alignment: .leading, spacing: 12) {
@@ -316,7 +408,7 @@ struct CalendarView: View {
                             .font(.system(size: 16, weight: .bold))
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
-                        EditorialStarburst().fill(.black).frame(width: 28, height: 28)
+                        EditorialStarburst().fill(appInk).frame(width: 28, height: 28)
                             .accessibilityHidden(true)
                     }
                     .font(.system(size: 16, weight: .bold))
@@ -370,13 +462,12 @@ struct CalendarView: View {
                         wordmark
                     }
                     .font(.system(size: 12))
-                    .foregroundStyle(hasSky && headerImage != nil && !showingMonthStyles ? .white : .black)
+                    .foregroundStyle(appInk)
                     .frame(height: 44)
                     if showingMonthStyles {
                         VStack(spacing: 0) {
-                            Rectangle().frame(height: 1)
-                            ForEach(Array(["Classic", "Sky", "Poster"].enumerated()), id: \.offset) { index, name in
-                                let style = name == "Classic" ? "Month v1" : name == "Sky" ? "Month v2" : "Poster"
+                            ForEach(Array(["Classic", "Sky", "Poster", "Notebook"].enumerated()), id: \.offset) { index, name in
+                                let style = name == "Classic" ? "Month v1" : name == "Sky" ? "Month v2" : name
                                 Button {
                                     monthlyStyle = style
                                     yearView = false
@@ -388,7 +479,7 @@ struct CalendarView: View {
                                         Text(name).font(.system(size: 12, weight: .semibold))
                                         Spacer()
                                         if monthlyStyle == style {
-                                            Circle().fill(.black).frame(width: 6, height: 6)
+                                            Circle().fill(appInk).frame(width: 6, height: 6)
                                                 .accessibilityHidden(true)
                                         }
                                     }
@@ -397,10 +488,12 @@ struct CalendarView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityAddTraits(monthlyStyle == style ? .isSelected : [])
-                                Rectangle().fill(.black.opacity(index == 2 ? 1 : 0.12)).frame(height: index == 2 ? 1 : 0.5)
+                                if index < 3 {
+                                    Rectangle().fill(appInk.opacity(0.12)).frame(height: 0.5)
+                                }
                             }
                         }
-                        .foregroundStyle(.black)
+                        .foregroundStyle(appInk)
                         .transition(.opacity.combined(with: .offset(y: -4)))
                     }
                 }
@@ -409,7 +502,7 @@ struct CalendarView: View {
                 .background { if showingMonthStyles { paper } }
             }
         }
-        .foregroundStyle(.black)
+        .foregroundStyle(appInk)
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { today = $0 }
         .fullScreenCover(isPresented: $showingSettings) { StorageSettingsView() }
         .fullScreenCover(isPresented: $camera, onDismiss: {
@@ -425,7 +518,8 @@ struct CalendarView: View {
             }
         }) {
             CameraView { url in
-                guard store.saveGIF(url, on: captureDate) else { return false }
+                guard calendar.isDateInToday(captureDate),
+                      store.saveGIF(url, on: captureDate) else { return false }
                 pendingPhotosCopy = store.directory.appendingPathComponent(store.key(captureDate) + ".gif")
                 pendingPhotosDate = captureDate
                 return true
@@ -440,12 +534,12 @@ struct CalendarView: View {
                     Task { await store.saveCopyToPhotos(url, date: date) }
                 }
             }
-            Button("Keep in LookUp", role: .cancel) {
+            Button("Keep in Above", role: .cancel) {
                 photosCopyPreference = "disabled"
                 pendingPhotosCopy = nil
             }
         } message: {
-            Text("Your skies are saved in LookUp. Save a copy to Photos, too. Your choice will apply to future skies.")
+            Text("Your skies are saved in Above. Save a copy to Photos, too. Your choice will apply to future skies.")
         }
         .fullScreenCover(item: $selected) { entry in
             NavigationStack {
@@ -455,43 +549,252 @@ struct CalendarView: View {
         }
         .alert("Something went wrong", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("OK") { store.error = nil } } message: { Text(store.error ?? "") }
     }
+    var classicCalendar: some View {
+        GeometryReader { geometry in
+            let background = paper
+            let ink = appInk
+            let width = geometry.size.width - 32
+            let circleSize = max(20, min((geometry.size.width - 50) / 7,
+                                         (geometry.size.height - 290) / 6 - 4))
+            let focus = calendar.isDate(month, equalTo: today, toGranularity: .month) ? today : monthStart
+            let daySize = min(width * 0.42, geometry.size.height * 0.21)
+            VStack(alignment: .leading, spacing: 0) {
+                Color.clear.frame(height: max(42, geometry.size.height * 0.075))
+                Text(focus.formatted(.dateTime.day()))
+                    .font(.system(size: daySize, weight: .bold))
+                    .lineLimit(1)
+                    .padding(.bottom, 12)
+                Text(month.formatted(.dateTime.month(.wide)))
+                    .font(.system(size: width * 0.075, weight: .medium))
+                    .tracking(0.5)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(month.formatted(.dateTime.year())).foregroundStyle(ink.opacity(0.48))
+                    Spacer()
+                    Text(focus.formatted(.dateTime.weekday(.abbreviated)))
+                }
+                .font(.system(size: width * 0.075, weight: .regular))
+                .padding(.top, 2)
+                HStack(spacing: 8) {
+                    Button { move(-1) } label: {
+                        Image(systemName: "chevron.left").font(.system(size: 14, weight: .medium))
+                            .frame(width: 40, height: 44, alignment: .leading)
+                    }.accessibilityLabel("Previous month")
+                    Button { move(1) } label: {
+                        Image(systemName: "chevron.right").font(.system(size: 14, weight: .medium))
+                            .frame(width: 40, height: 44, alignment: .leading)
+                    }.accessibilityLabel("Next month")
+                }
+                .padding(.top, 18)
+                Color.clear.frame(height: 20)
+                classicDateGrid(width: width, circleSize: circleSize)
+                    .frame(height: 23 + 6 * (circleSize + 4) + 5 * 5, alignment: .top)
+                Spacer(minLength: 20)
+
+            }
+            .foregroundStyle(ink)
+            .padding(.horizontal, 16)
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .background(background.ignoresSafeArea())
+        }
+    }
+
+    func classicDateGrid(width: CGFloat, circleSize: CGFloat) -> some View {
+        let cell = width / 7
+        let rows = (offset + days.count + 6) / 7
+        let ink = appInk
+        return VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, name in
+                        Text(name).font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(ink.opacity(0.5))
+                            .frame(width: circleSize).frame(width: cell, alignment: .leading)
+                    }
+                }
+                .padding(.bottom, 10)
+                VStack(spacing: 5) {
+                    ForEach(0..<rows, id: \.self) { row in
+                        HStack(spacing: 0) {
+                            ForEach(0..<7, id: \.self) { column in
+                                let index = row * 7 + column - offset
+                                if index >= 0 && index < days.count {
+                                    let day = days[index]
+                                    let current = calendar.isDate(day, inSameDayAs: today)
+                                    Button {
+                                        if let entry = store.entry(day) { selected = entry }
+                                        else { openCamera(on: day) }
+                                    } label: {
+                                        ZStack {
+                                            Circle().fill(emptySkyColor())
+                                            if let entry = store.entry(day), let image = store.image(entry) {
+                                                Image(uiImage: image).resizable().scaledToFill().clipShape(Circle())
+                                            } else if current {
+                                                Image(systemName: "plus")
+                                                    .font(.system(size: cell * 0.46, weight: .light))
+                                                    .foregroundStyle(ink)
+                                            }
+                                        }
+                                        .frame(width: circleSize, height: circleSize)
+                                        .overlay {
+                                            if current { Circle().strokeBorder(ink, lineWidth: 1) }
+                                        }
+                                        .frame(width: cell, height: circleSize + 4, alignment: .leading)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .disabled(!calendar.isDateInToday(day) && store.entry(day) == nil)
+                                    .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(current ? "today, " : "")\(store.entry(day) == nil ? "no sky" : "sky saved")")
+                                } else {
+                                    Color.clear.frame(width: cell, height: circleSize + 4, alignment: .leading)
+                                }
+                            }
+                        }
+                    }
+                }
+        }
+    }
+
+    var notebookCalendar: some View {
+        GeometryReader { geometry in
+            let blue = Color(red: 0.12, green: 0.40, blue: 0.73)
+            let rule = Color(red: 0.80, green: 0.36, blue: 0.22)
+            let width = geometry.size.width - 32
+            let cell = width / 7
+            VStack(spacing: 0) {
+                Color.clear.frame(height: 64)
+                Path { path in
+                    let step = (width - 10) / 28
+                    path.move(to: CGPoint(x: 0, y: 17))
+                    for index in 0..<28 {
+                        let x = CGFloat(index) * step
+                        let wobble: CGFloat = index % 3 == 0 ? 1 : -0.5
+                        path.addCurve(to: CGPoint(x: x + step * 0.5, y: 3 + wobble),
+                                      control1: CGPoint(x: x - step * 0.25, y: 4),
+                                      control2: CGPoint(x: x + step * 0.15, y: -1))
+                        path.addCurve(to: CGPoint(x: x + step, y: 17),
+                                      control1: CGPoint(x: x + step * 0.95, y: 7),
+                                      control2: CGPoint(x: x + step * 1.1, y: 21))
+                    }
+                }
+                .stroke(Color(red: 0.24, green: 0.43, blue: 0.28),
+                        style: StrokeStyle(lineWidth: 1.3, lineCap: .round, lineJoin: .round))
+                .frame(height: 20)
+                .padding(.horizontal, 5).padding(.bottom, 8)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(month.formatted(.dateTime.month(.twoDigits)))
+                        .tracking(-5)
+                    Spacer(minLength: 0)
+                    Text(month.formatted(.dateTime.month(.abbreviated)).uppercased())
+                        .tracking(-4)
+                }
+                .font(.system(size: width * 0.23, weight: .regular))
+                .lineLimit(1).minimumScaleFactor(0.5)
+                .padding(.horizontal, 6).padding(.vertical, 10)
+                .overlay(alignment: .bottom) { Rectangle().fill(rule).frame(height: 0.8) }
+                HStack(spacing: 0) {
+                    ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, title in
+                        Text(title).font(.system(size: 20, weight: .regular)).padding(.leading, 6)
+                            .frame(width: cell, height: 34, alignment: .leading)
+                            .overlay { Rectangle().stroke(rule, lineWidth: 0.4) }
+                    }
+                }
+                ForEach(0..<6, id: \.self) { row in
+                    HStack(spacing: 0) {
+                        ForEach(0..<7, id: \.self) { column in
+                            let index = row * 7 + column - offset
+                            ZStack(alignment: .topLeading) {
+                                if index >= 0 && index < days.count {
+                                    let day = days[index]
+                                    Button {
+                                        if let entry = store.entry(day) { selected = entry }
+                                        else { openCamera(on: day) }
+                                    } label: {
+                                        ZStack(alignment: .topLeading) {
+                                            if let entry = store.entry(day), let image = store.image(entry) {
+                                                Image(uiImage: image).resizable().scaledToFill()
+                                                    .frame(width: cell, height: cell * 1.12).clipped()
+                                            }
+                                            if store.entry(day) == nil {
+                                                Text("\(calendar.component(.day, from: day))")
+                                                    .font(.system(size: 23, weight: .regular))
+                                                    .foregroundStyle(blue)
+                                                    .padding(.leading, 5).padding(.top, 3)
+                                            }
+                                            if calendar.isDateInToday(day) && store.entry(day) == nil {
+                                                Image(systemName: "plus").font(.system(size: 17, weight: .light))
+                                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                                                    .padding(7)
+                                            }
+                                        }.frame(width: cell, height: cell * 1.12, alignment: .topLeading)
+                                    }.buttonStyle(.plain)
+                                        .disabled(!calendar.isDateInToday(day) && store.entry(day) == nil)
+                                        .accessibilityLabel(day.formatted(.dateTime.month().day()))
+                                }
+                            }.frame(width: cell, height: cell * 1.12)
+                                .overlay { Rectangle().stroke(rule, lineWidth: 0.4).allowsHitTesting(false) }
+                        }
+                    }
+                }
+                .overlay { Color.clear }
+                HStack {
+                    Button { move(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
+                    Spacer()
+                    Text(month.formatted(.dateTime.year())).font(.system(size: 12))
+                    Spacer()
+                    Button { move(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
+                }.font(.system(size: 14, weight: .regular)).padding(.top, 12)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(blue)
+            .padding(.horizontal, 16)
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .background(paper)
+        }
+    }
+
     func graphicCalendar(blocks: Bool) -> some View {
         GeometryReader { geometry in
             let side = (geometry.size.width - 44) / 7
             let weekCount = (offset + days.count + 6) / 7
             VStack(alignment: .leading, spacing: 0) {
-                Color.clear.frame(height: 24).padding(.top, 12)
+                Color.clear.frame(height: blocks ? 36 : 16 + geometry.size.height * 0.10)
+                if blocks {
                 HStack {
                     Text(month.formatted(.dateTime.month(.twoDigits)))
-                        .font(.system(size: blocks ? 110 : 48, weight: blocks ? .black : .bold)).tracking(blocks ? -5 : -2)
+                        .font(.system(size: blocks ? 110 : 51.2, weight: blocks ? .black : .medium)).tracking(blocks ? -5 : -2)
                     Spacer()
                     Text("’" + String(calendar.component(.year, from: month) % 100))
-                        .font(.system(size: blocks ? 24 : 48, weight: .bold)).tracking(-2)
-                }.frame(height: 65).padding(.top, 32)
+                        .font(.system(size: blocks ? 24 : 51.2, weight: blocks ? .bold : .medium)).tracking(-2)
+                }.frame(height: blocks ? 65 : 78).padding(.top, blocks ? 32 : 32)
+                }
                 if !blocks {
-                    Rectangle().frame(height: 1).padding(.vertical, 12)
-                    HStack(spacing: 12) {
-                        Button { move(-1) } label: {
-                            Image(systemName: "chevron.left").frame(width: 44, height: 44, alignment: .leading)
-                        }.accessibilityLabel("Previous month")
-                        Text(month.formatted(.dateTime.month(.abbreviated)).uppercased())
-                            .font(.system(size: 140, weight: .semibold)).tracking(-6)
-                            .minimumScaleFactor(0.5).lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                        Button { move(1) } label: {
-                            Image(systemName: "chevron.right").frame(width: 44, height: 44, alignment: .trailing)
-                        }.accessibilityLabel("Next month")
-                    }
+                    Rectangle().fill(appInk).frame(height: 1)
+                        .padding(.horizontal, -8)
+                    Color.clear.frame(height: 12)
+                    Text(month.formatted(.dateTime.month(.abbreviated)).uppercased())
+                        .font(.system(size: geometry.size.width * 0.47, weight: .bold))
+                        .tracking(-geometry.size.width * 0.025)
+                        .minimumScaleFactor(0.4).lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .overlay {
+                            HStack {
+                                Button { move(-1) } label: { Color.clear.frame(width: 44, height: 80) }
+                                    .accessibilityLabel("Previous month")
+                                Spacer()
+                                Button { move(1) } label: { Color.clear.frame(width: 44, height: 80) }
+                                    .accessibilityLabel("Next month")
+                            }
+                        }
 
+                    Rectangle().fill(appInk).frame(height: 1)
+                        .padding(.horizontal, -8)
                 }
                 if blocks { Color.clear.frame(height: 16) }
-                else { Color.clear.frame(height: 16) }
+                else { Color.clear.frame(height: 10) }
                 HStack(spacing: 2) {
                     ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, name in
-                        Text(name).font(.system(size: blocks ? 10 : 25, weight: .bold))
+                        Text(name).font(.system(size: blocks ? 10 : side * 0.8, weight: blocks ? .bold : .medium))
                             .frame(width: side)
                     }
-                }.padding(.bottom, blocks ? 8 : 12)
+                }.padding(.bottom, blocks ? 8 : 2)
                 VStack(spacing: blocks ? 0 : 6) {
                     ForEach(0..<weekCount, id: \.self) { row in
                         HStack(spacing: 2) {
@@ -505,7 +808,7 @@ struct CalendarView: View {
                             }
                         }
                         .background {
-                            if blocks { Capsule().fill(.black) }
+                            if blocks { Capsule().fill(appInk) }
                         }
                     }
                 }
@@ -528,6 +831,15 @@ struct CalendarView: View {
             .padding(.horizontal, 16).padding(.bottom, 18)
             .frame(width: geometry.size.width, height: geometry.size.height)
             .background(paper)
+            .overlay {
+                if !blocks {
+                    Rectangle().strokeBorder(appInk, lineWidth: 1)
+                        .padding(.top, 44)
+                        .padding(.horizontal, 8)
+                        .padding(.bottom, 18)
+                        .allowsHitTesting(false)
+                }
+            }
         }
     }
     func graphicDay(_ day: Date, side: CGFloat, blocks: Bool) -> some View {
@@ -542,11 +854,13 @@ struct CalendarView: View {
                 if store.entry(day) == nil {
                 if calendar.isDate(day, inSameDayAs: today) {
                     Image(systemName: "plus").font(.system(size: 25, weight: .regular))
-                        .foregroundStyle(blocks ? .white : .black)
+                        .foregroundStyle(blocks ? .white : appInk)
                 } else {
                 Text("\(calendar.component(.day, from: day))")
-                    .font(.system(size: blocks ? 10 : 31, weight: .bold))
-                    .foregroundStyle(blocks || store.entry(day) != nil ? .white : .black)
+                    .font(.system(size: blocks ? 10 : side * 0.8, weight: blocks ? .bold : .medium))
+                    .tracking(blocks ? 0 : -side * 0.065)
+                    .lineLimit(1).minimumScaleFactor(0.75)
+                    .foregroundStyle(blocks || store.entry(day) != nil ? .white : appInk)
                     .shadow(color: store.entry(day) != nil ? .black.opacity(0.5) : .clear, radius: 2)
                 }
                 }
@@ -557,14 +871,14 @@ struct CalendarView: View {
             .frame(width: side, height: side)
         }
         .buttonStyle(.plain)
-        .disabled(calendar.startOfDay(for: day) > calendar.startOfDay(for: today))
+        .disabled(!calendar.isDateInToday(day) && store.entry(day) == nil)
         .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(store.entry(day) == nil ? "no sky" : "sky saved")")
     }
     var yearlyCalendar: some View {
         GeometryReader { geometry in
         let circleSize = min(22, max(14, (geometry.size.height - 140) / 27))
         VStack(alignment: .leading, spacing: 10) {
-            Color.clear.frame(height: 24).padding(.top, 12)
+            Color.clear.frame(height: 24)
             HStack {
                 Text(month.formatted(.dateTime.year())).font(.system(size: 54, weight: .bold)).tracking(-2)
                 Spacer()
@@ -572,13 +886,13 @@ struct CalendarView: View {
                     .accessibilityLabel("Previous year")
                 Button { moveYear(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
                     .accessibilityLabel("Next year")
-            }.padding(.top, 8).offset(y: 14)
+            }.padding(.top, 6).offset(y: 10)
                 Spacer(minLength: 0)
-                YearFlowLayout(spacing: 1) {
+                YearFlowLayout(spacing: 1, rowSpacing: 3) {
                     ForEach(1...12, id: \.self) { number in
                         let start = calendar.date(from: DateComponents(year: calendar.component(.year, from: month), month: number, day: 1))!
                         Text(start.formatted(.dateTime.month(.abbreviated)).uppercased())
-                            .font(.system(size: 22, weight: .black)).tracking(-1)
+                            .font(.system(size: 22, weight: .heavy)).tracking(-1)
                             .padding(.horizontal, 3).frame(height: 21)
                             .accessibilityAddTraits(.isHeader)
                         ForEach(0..<(calendar.range(of: .day, in: .month, for: start)?.count ?? 0), id: \.self) { index in
@@ -594,16 +908,16 @@ struct CalendarView: View {
                                         Image(systemName: "plus").font(.system(size: 12, weight: .regular))
                                     } else {
                                         Text("\(index + 1)").font(.system(size: 10, weight: .regular))
-                                            .foregroundStyle(.black.opacity(day > today ? 0.25 : 0.7))
+                                            .foregroundStyle(appInk.opacity(day > today ? 0.25 : 0.7))
                                     }
                                 }
                                 .frame(width: circleSize, height: circleSize).clipShape(Circle())
-                                .overlay { if calendar.isDateInToday(day) { Circle().stroke(.black, lineWidth: 1) } }
+                                .overlay { if calendar.isDateInToday(day) { Circle().stroke(appInk, lineWidth: 1) } }
                                 .frame(width: circleSize, height: circleSize)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
-                            .disabled(calendar.startOfDay(for: day) > calendar.startOfDay(for: today))
+                            .disabled(!calendar.isDateInToday(day) && store.entry(day) == nil)
                             .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(store.entry(day) == nil ? "no sky" : "sky saved")")
                         }
                     }
@@ -619,71 +933,126 @@ struct CalendarView: View {
         month = calendar.date(byAdding: .year, value: amount, to: month)!
     }
     func openCamera(on date: Date) {
+        guard calendar.isDateInToday(date) else { return }
         guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
-            store.error = "Camera is unavailable on this device. Use LookUp on an iPhone to record your sky."
+            store.error = "Camera is unavailable on this device. Use Above on an iPhone to record your sky."
             return
         }
         captureDate = date
         camera = true
     }
-    func skyGrid(photoSize: CGFloat) -> some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 7), spacing: 4) {
-            ForEach(Array(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].enumerated()), id: \.offset) { _, label in
-                Text(label).font(.system(size: 10, weight: .bold))
-                    .frame(maxWidth: .infinity, alignment: .center).padding(.bottom, 8)
-            }
-            ForEach(-offset..<0, id: \.self) { _ in Color.clear.frame(height: photoSize) }
-            ForEach(days, id: \.self) { day in
+    func skyGrid(photoSize: CGFloat, width: CGFloat) -> some View {
+        classicDateGrid(width: width, circleSize: photoSize)
+    }
+    func move(_ amount: Int) { month = calendar.date(byAdding: .month, value: amount, to: monthStart)! }
+}
+
+struct PaletteEditor: View {
+    @AppStorage("backgroundPalette") private var backgroundChoice = "Paper"
+    @AppStorage("inkPalette") private var inkChoice = "Black"
+    @State private var draftBackground = "Paper"
+    @State private var draftInk = "Black"
+    var body: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            HStack {
+                Text("Palette").font(.system(size: 18, weight: .medium)).tracking(-0.4)
+                Spacer()
                 Button {
-                    if let entry = store.entry(day) { selected = entry }
-                    else { openCamera(on: day) }
+                    backgroundChoice = draftBackground
+                    inkChoice = draftInk
                 } label: {
-                    VStack(spacing: 0) {
-                        ZStack {
-                            if let entry = store.entry(day), let image = store.image(entry) {
-                                Image(uiImage: image).resizable().scaledToFill()
-                            } else {
-                                Circle().fill(Color(white: 0.95))
-                                if calendar.isDateInToday(day) {
-                                    Image(systemName: "plus").font(.system(size: 17, weight: .light))
+                    Text("Save").font(.system(size: 13, weight: .medium))
+                        .frame(height: 32)
+                }.accessibilityLabel("Save colors")
+                .disabled(draftBackground == backgroundChoice && draftInk == inkChoice)
+                .opacity(draftBackground == backgroundChoice && draftInk == inkChoice ? 0.35 : 1)
+            }
+            HStack(alignment: .firstTextBaseline) {
+                Text("Aa").font(.system(size: 56, weight: .medium)).tracking(-3)
+                Spacer()
+                Text("Above").font(.system(size: 14, weight: .medium))
+            }
+            .foregroundStyle(inkPalette.first { $0.0 == draftInk }?.1 ?? .black).padding(.horizontal, 18)
+            .frame(maxWidth: .infinity, minHeight: 96)
+            .background(backgroundPalette.first { $0.0 == draftBackground }?.1 ?? backgroundPalette[0].1, in: RoundedRectangle(cornerRadius: 3))
+            paletteRow("Background", palette: backgroundPalette, choice: $draftBackground)
+            paletteRow("Type", palette: inkPalette, choice: $draftInk)
+        }
+        .foregroundStyle(appInk)
+        .onAppear {
+            draftBackground = backgroundChoice
+            draftInk = inkChoice
+        }
+    }
+    func paletteRow(_ title: String, palette: [(String, Color)], choice: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(title.uppercased()).font(.system(size: 10, weight: .medium)).tracking(1.2)
+                Spacer()
+                Text(choice.wrappedValue).font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            HStack(spacing: 10) {
+                ForEach(palette, id: \.0) { name, color in
+                    Button { choice.wrappedValue = name } label: {
+                        VStack(spacing: 6) {
+                            RoundedRectangle(cornerRadius: 2).fill(color)
+                                .overlay { RoundedRectangle(cornerRadius: 2).strokeBorder(.black.opacity(0.08), lineWidth: 0.5) }
+                                .frame(height: 34)
+                                .overlay {
+                                    if choice.wrappedValue == name {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundStyle(title == "Background" || name == "Green" ? Color.black.opacity(0.8) : Color.white)
+                                    }
                                 }
-                            }
+
                         }
-                        .frame(width: photoSize, height: photoSize).clipShape(Circle())
-                        .overlay {
-                            if calendar.isDate(day, inSameDayAs: today) {
-                                Circle().strokeBorder(.black, lineWidth: 1.5)
-                            }
-                        }
-                    }.frame(maxWidth: .infinity, alignment: .center).contentShape(Rectangle())
+                        .frame(maxWidth: .infinity).contentShape(Rectangle())
+                    }.buttonStyle(.plain)
+                    .accessibilityLabel("\(title) \(name)")
+                    .accessibilityAddTraits(choice.wrappedValue == name ? .isSelected : [])
                 }
-                .buttonStyle(.plain)
-                .disabled(calendar.startOfDay(for: day) > calendar.startOfDay(for: Date()))
-                .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), \(store.entry(day) == nil ? "no sky" : "sky saved")")
             }
         }
     }
-    func move(_ amount: Int) { month = calendar.date(byAdding: .month, value: amount, to: monthStart)! }
 }
 
 struct StorageSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @AppStorage("photosCopyPreference") private var photosCopyPreference = "unasked"
+    @EnvironmentObject private var store: SkyStore
+    @AppStorage("skyReminderEnabled") private var reminderEnabled = false
+    @AppStorage("skyReminderHour") private var reminderHour = 18
+    @AppStorage("skyReminderMinute") private var reminderMinute = 0
+    @State private var requestingReminder = false
+    @State private var reminderDenied = false
+    @State private var reminderError = false
+    private var reminderTime: Binding<Date> {
+        Binding(get: {
+            Calendar.current.date(bySettingHour: reminderHour, minute: reminderMinute, second: 0, of: Date()) ?? Date()
+        }, set: { date in
+            reminderHour = Calendar.current.component(.hour, from: date)
+            reminderMinute = Calendar.current.component(.minute, from: date)
+            SkyReminder.shared.refresh(entries: store.entries)
+        })
+    }
     @State private var checkingPermission = false
     @State private var permissionDenied = false
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Button { dismiss() } label: {
                     Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
                 }.accessibilityLabel("Back")
                 Spacer()
-                Text("LookUp").font(.system(size: 12, weight: .semibold))
+                Text("Above").font(.system(size: 12, weight: .semibold))
             }
             Text("your skies.").font(.system(size: 36, weight: .bold)).tracking(-1)
                 .padding(.top, 36).padding(.bottom, 32)
-            Rectangle().frame(height: 1)
+            PaletteEditor().padding(.bottom, 32)
+            Rectangle().fill(appInk.opacity(0.15)).frame(height: 0.5)
             Toggle(isOn: Binding(get: { photosCopyPreference == "enabled" }, set: { enabled in
                 if !enabled { photosCopyPreference = "disabled"; return }
                 checkingPermission = true
@@ -700,23 +1069,67 @@ struct StorageSettingsView: View {
             })) {
                 Text("Save a copy to Photos").font(.system(size: 16, weight: .semibold))
             }
-            .tint(.black).disabled(checkingPermission).padding(.vertical, 20)
-            Rectangle().fill(.black.opacity(0.15)).frame(height: 0.5)
+            .tint(appInk).disabled(checkingPermission).padding(.vertical, 20)
+            Rectangle().fill(appInk.opacity(0.15)).frame(height: 0.5)
             Text("New skies will also be saved to Photos as moving GIFs. Your existing records stay where they are.")
                 .font(.system(size: 14)).foregroundStyle(.secondary).lineSpacing(4).padding(.top, 18)
-            Text("Your skies and notes are always saved in LookUp on this iPhone. Turning this off keeps future captures in LookUp only.")
+            Text("Your skies and notes are always saved in Above on this iPhone. Turning this off keeps future captures in Above only.")
                 .font(.system(size: 14)).foregroundStyle(.secondary).lineSpacing(4).padding(.top, 16)
-            Spacer()
+            Rectangle().fill(appInk.opacity(0.15)).frame(height: 0.5).padding(.top, 28)
+            Toggle(isOn: Binding(get: { reminderEnabled }, set: { enabled in
+                if !enabled {
+                    reminderEnabled = false
+                    SkyReminder.shared.refresh(entries: store.entries)
+                    return
+                }
+                requestingReminder = true
+                Task { @MainActor in
+                    defer { requestingReminder = false }
+                    do {
+                        let allowed = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+                        reminderEnabled = allowed
+                        if allowed { SkyReminder.shared.refresh(entries: store.entries) }
+                        else { reminderDenied = true }
+                    } catch { reminderError = true }
+                }
+            })) {
+                Text("Daily sky reminder").font(.system(size: 16, weight: .semibold))
+            }.tint(appInk).disabled(requestingReminder).padding(.vertical, 20)
+            if reminderEnabled {
+                DatePicker("Remind me at", selection: reminderTime, displayedComponents: .hourAndMinute)
+                    .font(.system(size: 14)).tint(appInk)
+            }
+            Text("A gentle reminder if you haven’t recorded today’s sky. Saving your sky cancels that day’s reminder.")
+                .font(.system(size: 14)).foregroundStyle(.secondary).lineSpacing(4).padding(.top, 12)
+            #if targetEnvironment(simulator)
+            Button("Preview introduction") {
+                UserDefaults.standard.set(false, forKey: "hasSeenWelcome")
+                dismiss()
+            }.font(.system(size: 13)).padding(.top, 24)
+            #endif
+            Spacer(minLength: 24)
         }
         .padding(.horizontal, 28).padding(.top, 12).padding(.bottom, 24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity).background(paper).foregroundStyle(.black)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity).background(paper).foregroundStyle(appInk)
+        .alert("Allow notifications", isPresented: $reminderDenied) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            }
+            Button("Not now", role: .cancel) { }
+        } message: {
+            Text("Enable notifications for Above in iPhone Settings to receive sky reminders.")
+        }
+        .alert("Couldn’t enable reminders", isPresented: $reminderError) {
+            Button("OK", role: .cancel) { }
+        } message: { Text("Please try again.") }
         .alert("Allow Photos access", isPresented: $permissionDenied) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
             }
             Button("Not now", role: .cancel) { }
         } message: {
-            Text("Allow LookUp to add to Photos in Settings. Your records in LookUp are safe either way.")
+            Text("Allow Above to add to Photos in Settings. Your records in Above are safe either way.")
         }
     }
 }
@@ -759,10 +1172,9 @@ struct EntryView: View {
                         }.accessibilityLabel("Delete photo")
                     }
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(entry.date.formatted(.dateTime.month(.wide).day()).lowercased())
-                            .font(.system(size: 34, weight: .bold)).tracking(-1.4)
-                        Text("\(entry.date.formatted(.dateTime.weekday(.wide))), \(entry.date.formatted(.dateTime.year()))")
-                            .font(.system(size: 12)).foregroundStyle(.secondary)
+                        Text("\(entry.date.formatted(.dateTime.month(.wide).day())), \(entry.date.formatted(.dateTime.weekday(.wide)))")
+                            .font(.system(size: 26, weight: .medium)).tracking(-0.6)
+                            .lineLimit(1).minimumScaleFactor(0.65)
                     }
                 }.frame(height: 144, alignment: .top)
                     SkyMediaView(poster: poster, gifURL: mediaURL)
@@ -809,7 +1221,7 @@ struct EntryView: View {
             }
             }
         }
-        .background(paper).foregroundStyle(.black)
+        .background(paper).foregroundStyle(appInk)
         .onAppear {
             draft = savedNote
             poster = store.image(entry)
@@ -838,8 +1250,8 @@ struct InlineNoteInput: UIViewRepresentable {
         view.delegate = context.coordinator
         view.font = .systemFont(ofSize: 21)
         view.backgroundColor = .clear
-        view.textColor = .black
-        view.tintColor = .black
+        view.textColor = UIColor(appInk)
+        view.tintColor = UIColor(appInk)
         view.isScrollEnabled = false
         view.textContainer.lineFragmentPadding = 0
         view.textContainerInset = UIEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
@@ -910,7 +1322,7 @@ struct InlineNoteInput: UIViewRepresentable {
         guard !cancelled, session.inputs.isEmpty else { return }
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device) else {
-            message = "A camera is needed to record your sky. Try LookUp on your iPhone."
+            message = "A camera is needed to record your sky. Try Above on your iPhone."
             return
         }
         session.beginConfiguration()
@@ -1103,7 +1515,7 @@ struct CameraView: View {
                         Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
                     }.accessibilityLabel("Back")
                     Spacer()
-                    Text("LookUp").font(.system(size: 12, weight: .semibold))
+                    Text("Above").font(.system(size: 12, weight: .semibold))
                 }
                 Spacer(minLength: 20)
                 Button { camera.record() } label: {
@@ -1132,9 +1544,9 @@ struct CameraView: View {
                             let elapsed = camera.elapsed(at: context.date)
                             let progress = camera.processing ? 1 : min(1, max(0, elapsed / SkyGIFEncoder.duration))
                             ZStack {
-                                Circle().stroke(.black.opacity(0.15), lineWidth: 2)
+                                Circle().stroke(appInk.opacity(0.15), lineWidth: 2)
                                 Circle().trim(from: 0, to: progress)
-                                    .stroke(.black, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                                    .stroke(appInk, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                                     .rotationEffect(.degrees(-90))
                             }.padding(-8)
                         }.allowsHitTesting(false)
@@ -1149,7 +1561,7 @@ struct CameraView: View {
             }
             .padding(.horizontal, 28).padding(.top, 12)
             .frame(width: geometry.size.width, height: geometry.size.height)
-            .background(paper).foregroundStyle(.black)
+            .background(paper).foregroundStyle(appInk)
         }
         .onAppear {
             camera.onCapture = { url in
@@ -1182,6 +1594,7 @@ struct EditorialStarburst: Shape {
 
 struct YearFlowLayout: Layout {
     var spacing: CGFloat = 5
+    var rowSpacing: CGFloat = 3
     func positions(width: CGFloat, subviews: Subviews) -> (CGSize, [CGPoint]) {
         var x: CGFloat = 0
         var y: CGFloat = 0
@@ -1191,7 +1604,7 @@ struct YearFlowLayout: Layout {
             let size = view.sizeThatFits(.unspecified)
             if x > 0 && x + size.width > width {
                 x = 0
-                y += rowHeight + spacing
+                y += rowHeight + rowSpacing
                 rowHeight = 0
             }
             points.append(CGPoint(x: x, y: y))
@@ -1215,9 +1628,9 @@ struct YearFlowLayout: Layout {
 struct AboveWordmark: View {
     var height: CGFloat = 20
     var body: some View {
-        Text("LookUp")
+        Text("Above")
             .font(.system(size: height, weight: .regular))
             .tracking(-height * 2 / 85)
-            .accessibilityLabel("LookUp")
+            .accessibilityLabel("Above")
     }
 }

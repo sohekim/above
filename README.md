@@ -10,7 +10,7 @@ Open `Above.xcodeproj` in Xcode 16 or newer and run on an iPhone with iOS 17 or 
 
 - Neutral off-white calendar home with a neutral off-white header that fills with today’s captured sky poster, a clean sans-serif Above wordmark, and bold lowercase month headings below the calendar. Diary and capture retain a neutral off-white background.
 - Monthly calendar fits the screen, including six-row months. Large sky circles, centered weekday labels, no visible date numerals, and a smaller right-aligned wordmark. The calendar sits lower on the page. With today’s sky, the photo header is taller by about 6% of screen height and a month-and-year header sits above the calendar with navigation chevrons on the right. Without today’s sky, a large bold month title sits above the year and two-line caption. No home subtitle or Look up button.
-- Tap an empty past or current date to open the camera directly. Tap the sky circle to start a silent ten-second recording; a ring tracks progress. No separate shutter or photo-library import.
+- Tap today’s empty date to open the camera directly. Empty past and future dates are disabled in every calendar view. Tap the sky circle to start a silent ten-second recording; a ring tracks progress. No separate shutter or photo-library import.
 - Recordings become 480 × 480 looping GIFs at 5 fps. The diary animates them inside a circle; the calendar uses a still thumbnail. Existing photos remain readable. Reduce Motion shows a still.
 - Interrupted recordings are discarded. GIF conversion runs off the main thread; temporary video files are removed.
 - Full-screen photo detail with date and a scrollable note.
@@ -41,7 +41,7 @@ The decorative black starburst appears only beside the caption in the no-sky lay
 
 All screen backgrounds use the same neutral off-white (98% white), without a yellow tint.
 
-Month / Year controls switch between the existing monthly layout and a scrollable editorial year view. Bold month abbreviations flow inline with day numbers; saved entries replace day numbers with circular sky posters. Year arrows navigate years. Tapping a saved day opens its diary; past or current empty days open capture. Future dates are disabled.
+Month / Year controls switch between the existing monthly layout and a scrollable editorial year view. Bold month abbreviations flow inline with day numbers; saved entries replace day numbers with circular sky posters. Year arrows navigate years. Tapping a saved day opens its diary; only today’s empty day opens capture. Empty past and future dates are disabled.
 
 Two additional monthly styles are available from the top selector: Blocks uses an oversized month number with touching black capsule week rows with plain light date numerals for empty days and tightly spaced sky circles without numerals for recorded days; Poster uses an oversized month abbreviation, a ruled month/year header, and bold date numerals. Saved days show sky photos in both styles; navigation and diary/capture actions use the same stored entries. All styles retain the neutral off-white background.
 
@@ -58,3 +58,13 @@ After the first successful capture, Above asks whether to keep an animated GIF c
 The user-facing app name is LookUp, including the wordmark, home-screen display name, and save-copy messaging. The existing bundle identifier and storage paths are preserved so installed records remain available.
 
 Tap the LookUp wordmark to open storage settings and change automatic Photos copies for future captures. Enabling requests add-only Photos access; denied access offers a Settings link. Sample seeding is disabled in all physical-device and Release builds, and in Simulator is opt-in via the Debug --sample-skies launch argument. Existing records are not removed.
+
+## Current calendar and appearance controls
+
+- Month designs: Classic, Sky, Poster, and Notebook. Classic and Sky share the same circle grid and reserve six weeks so month changes do not shift the layout.
+- Above settings contains the inline Palette editor. Background and type colors are previewed separately and applied only after Save. Empty circles follow the selected background with a subtle gray mix.
+- New captures are limited to today. Existing records remain accessible in every calendar.
+- Local daily sky reminders default to 6 PM, with an editable time and optional notification permission. The app schedules up to 60 days ahead, refreshes on activation and record changes, and omits days with actual recordings. Preview samples do not count as recordings. No server or account is required.
+- Downloaded October preview photos are local-only and ignored by Git. Their automatic preview seeding is excluded from the app source.
+
+App Store preparation: the current local development environment uses Xcode 16.4; production submission requires updating to Apple's currently accepted Xcode/SDK. Privacy/support URLs and a required-reason privacy manifest still need release preparation.
