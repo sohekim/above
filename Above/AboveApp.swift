@@ -248,15 +248,36 @@ struct AboveRootView: View {
     }
 }
 
+/// Matches the main calendar header's safe-area origin, 16-point inset and 44-point row.
+struct AboveScreenHeader: View {
+    var onBack: (() -> Void)? = nil
+    var body: some View {
+        HStack(spacing: 14) {
+            if let onBack {
+                Button(action: onBack) {
+                    Image(systemName: "arrow.left")
+                        .font(.system(size: 17, weight: .regular))
+                        .frame(width: 44, height: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Back")
+            }
+            Spacer()
+            Text("Above").font(.system(size: 12, weight: .semibold))
+        }
+        .foregroundStyle(appInk)
+        .frame(height: 44)
+        .padding(.horizontal, 16)
+    }
+}
+
 struct WelcomeView: View {
     let onContinue: () -> Void
     var body: some View {
         GeometryReader { geometry in
             VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Text("Above").font(.system(size: 12, weight: .semibold))
-                    Spacer()
-                }
+                Color.clear.frame(height: 44)
                 Spacer(minLength: 24)
                 Text("We spend about 90% of our time indoors.")
                     .font(.system(size: geometry.size.height > 700 ? 43 : 35, weight: .medium))
@@ -276,9 +297,12 @@ struct WelcomeView: View {
                         .padding(.vertical, 12)
                 }.buttonStyle(.plain)
             }
-            .padding(.horizontal, 28).padding(.top, 18).padding(.bottom, 24)
+            .padding(.horizontal, 28).padding(.bottom, 24)
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)
             .background(paper).foregroundStyle(appInk)
+            .overlay(alignment: .top) {
+                AboveScreenHeader().frame(width: geometry.size.width)
+            }
         }
     }
 }
@@ -452,21 +476,31 @@ struct CalendarView: View {
                                 .opacity(yearView ? 1 : 0.5)
                         }
                         .accessibilityAddTraits(yearView ? .isSelected : [])
-                        Button {
-                            withAnimation(.easeOut(duration: 0.16)) { showingMonthStyles.toggle() }
-                        } label: {
-                            HStack(spacing: 4) {
+                        HStack(spacing: 4) {
+                            Button {
+                                yearView = false
+                                withAnimation(.easeOut(duration: 0.16)) { showingMonthStyles = false }
+                            } label: {
                                 Text("Month")
+                                    .fontWeight(yearView ? .regular : .semibold)
+                                    .opacity(yearView ? 0.5 : 1)
+                                    .frame(height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .accessibilityLabel("Month")
+                            .accessibilityAddTraits(yearView ? [] : .isSelected)
+                            Button {
+                                withAnimation(.easeOut(duration: 0.16)) { showingMonthStyles.toggle() }
+                            } label: {
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 8, weight: .semibold))
                                     .rotationEffect(.degrees(showingMonthStyles ? 180 : 0))
+                                    .frame(width: 24, height: 44)
+                                    .contentShape(Rectangle())
                             }
-                            .fontWeight(yearView ? .regular : .semibold)
-                            .opacity(yearView && !showingMonthStyles ? 0.5 : 1)
+                            .accessibilityLabel("Month designs")
+                            .accessibilityValue(showingMonthStyles ? "Expanded" : "Collapsed")
                         }
-                        .accessibilityLabel("Month designs")
-                        .accessibilityValue(showingMonthStyles ? "Expanded" : "Collapsed")
-                        .accessibilityAddTraits(yearView ? [] : .isSelected)
                         Spacer()
                         wordmark
                     }
@@ -677,7 +711,7 @@ struct CalendarView: View {
             let side = (geometry.size.width - 44) / 7
             let weekCount = (offset + days.count + 6) / 7
             VStack(alignment: .leading, spacing: 0) {
-                Color.clear.frame(height: blocks ? 36 : 16 + geometry.size.height * 0.10)
+                Color.clear.frame(height: blocks ? 36 : 44)
                 if blocks {
                 HStack {
                     Text(month.formatted(.dateTime.month(.twoDigits)))
@@ -690,7 +724,7 @@ struct CalendarView: View {
                 if !blocks {
                     Rectangle().fill(appInk).frame(height: 1)
                         .padding(.horizontal, -8)
-                    Color.clear.frame(height: 12)
+                    VStack(spacing: 0) {
                     Text(month.formatted(.dateTime.month(.abbreviated)).uppercased())
                         .font(.system(size: geometry.size.width * 0.47, weight: .bold))
                         .tracking(-geometry.size.width * 0.025)
@@ -706,11 +740,18 @@ struct CalendarView: View {
                             }
                         }
 
+                    }
+                    .foregroundStyle(paper)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: max(200, min(280, geometry.size.height - CGFloat(weekCount) * (side + 6) - side * 1.15 - 64)), alignment: .center)
+                    .padding(.horizontal, 8)
+                    .background(appInk)
+                    .padding(.horizontal, -8)
                     Rectangle().fill(appInk).frame(height: 1)
                         .padding(.horizontal, -8)
                 }
                 if blocks { Color.clear.frame(height: 16) }
-                else { Color.clear.frame(height: 10) }
+                else { Color.clear.frame(height: 28) }
                 HStack(spacing: 2) {
                     ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, name in
                         Text(name).font(.system(size: blocks ? 10 : side * 0.8, weight: blocks ? .bold : .medium))
@@ -789,7 +830,7 @@ struct CalendarView: View {
             }
             .frame(width: side - (blocks ? 1 : 0), height: side - (blocks ? 1 : 0))
             .clipShape(Circle())
-            .overlay { if !blocks && calendar.isDateInToday(day) { Circle().stroke(blocks ? .white : .black, lineWidth: 1) } }
+            .overlay { if !blocks && calendar.isDateInToday(day) { Circle().stroke(appInk, lineWidth: 1) } }
             .frame(width: side, height: side)
         }
         .buttonStyle(.plain)
@@ -966,13 +1007,8 @@ struct StorageSettingsView: View {
     var body: some View {
         ScrollView {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Button { dismiss() } label: {
-                    Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
-                }.accessibilityLabel("Back")
-                Spacer()
-                Text("Above").font(.system(size: 12, weight: .semibold))
-            }
+            AboveScreenHeader(onBack: { dismiss() })
+                .padding(.horizontal, -28)
             Text("your skies.").font(.system(size: 36, weight: .bold)).tracking(-1)
                 .padding(.top, 36).padding(.bottom, 32)
             PaletteEditor().padding(.bottom, 32)
@@ -1434,13 +1470,7 @@ struct CameraView: View {
         GeometryReader { geometry in
             let side = max(0, min(geometry.size.width - 40, geometry.size.height * 0.65))
             VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Button { camera.stop(); dismiss() } label: {
-                        Image(systemName: "arrow.left").frame(width: 44, height: 44, alignment: .leading)
-                    }.accessibilityLabel("Back")
-                    Spacer()
-                    Text("Above").font(.system(size: 12, weight: .semibold))
-                }
+                Color.clear.frame(height: 44)
                 Spacer(minLength: 20)
                 Button { camera.record() } label: {
                     ZStack {
@@ -1483,9 +1513,15 @@ struct CameraView: View {
                 .frame(maxWidth: .infinity)
                 Spacer(minLength: 24)
             }
-            .padding(.horizontal, 28).padding(.top, 12)
             .frame(width: geometry.size.width, height: geometry.size.height)
             .background(paper).foregroundStyle(appInk)
+            .overlay(alignment: .top) {
+                AboveScreenHeader {
+                    camera.stop()
+                    dismiss()
+                }
+                .frame(width: geometry.size.width)
+            }
         }
         .onAppear {
             camera.onCapture = { url in

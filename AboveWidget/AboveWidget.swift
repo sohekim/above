@@ -22,9 +22,13 @@ struct SkyProvider: TimelineProvider {
         completion(Timeline(entries: entries, policy: .atEnd))
     }
 }
+enum SkyWidgetTheme { case classic, poster }
+
 struct SkyWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: SkyWidgetEntry
+    var theme: SkyWidgetTheme = .classic
+    var twoWeeks = false
     private func color(_ rgb: [Double]?, fallback: [Double]) -> Color {
         let values = rgb?.count == 3 ? rgb! : fallback
         return Color(red: values[0], green: values[1], blue: values[2])
@@ -43,25 +47,72 @@ struct SkyWidgetView: View {
     }
     var body: some View {
         Group {
-            if family == .systemMedium {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 6) {
-                        ForEach(Array(week.enumerated()), id: \.offset) { index, date in
-                            VStack(spacing: 7) {
-                                Text(["M", "T", "W", "T", "F", "S", "S"][index])
-                                    .font(.system(size: 10, weight: .medium)).foregroundStyle(ink.opacity(0.6))
-                                GeometryReader { geometry in
-                                    day(date).frame(width: geometry.size.width, height: geometry.size.width)
-                                }.aspectRatio(1, contentMode: .fit)
+            if theme == .poster {
+                poster
+            } else if family == .systemMedium {
+                classicWeeks
+            } else {
+                day(entry.date).padding(14)
+            }
+        }
+        .foregroundStyle(ink)
+        .containerBackground(for: .widget) { background }
+    }
+    private var classicWeeks: some View {
+        GeometryReader { geometry in
+            let gap: CGFloat = 2
+            let side = max(0, min((geometry.size.width - 16 - gap * 6) / 7,
+                                 twoWeeks ? (geometry.size.height - 48) / 2 : geometry.size.height - 70))
+            VStack(spacing: twoWeeks ? 9 : 14) {
+                HStack(spacing: gap) {
+                    ForEach(0..<7, id: \.self) { index in
+                        Text(["M", "T", "W", "T", "F", "S", "S"][index])
+                            .font(.system(size: twoWeeks ? 11 : 15, weight: .medium))
+                            .foregroundStyle(ink.opacity(twoWeeks ? 0.65 : 0.9))
+                            .frame(width: side)
+                    }
+                }
+                if twoWeeks {
+                    HStack(spacing: gap) {
+                        ForEach(week, id: \.self) { date in
+                            if let previous = Calendar.current.date(byAdding: .day, value: -7, to: date) {
+                                day(previous).frame(width: side, height: side)
                             }
                         }
                     }
-                }.padding(16)
-            } else {
-                day(entry.date).padding(15)
+                }
+                HStack(spacing: gap) {
+                    ForEach(week, id: \.self) { date in
+                        day(date).frame(width: side, height: side)
+                    }
+                }
             }
+            .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        .containerBackground(for: .widget) { background }
+    }
+    private var poster: some View {
+        GeometryReader { geometry in
+            let side = max(0, min(geometry.size.height - 20, geometry.size.width * 0.46))
+            HStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(entry.date.formatted(.dateTime.month(.abbreviated)).uppercased())
+                        .font(.system(size: 14, weight: .bold)).tracking(-0.3)
+                        .padding(.bottom, -7)
+                    Text(entry.date.formatted(.dateTime.day()))
+                        .font(.system(size: 88, weight: .bold))
+                        .tracking(-5).minimumScaleFactor(0.7).lineLimit(1)
+                    Text(entry.date.formatted(.dateTime.weekday(.wide)).uppercased())
+                        .font(.system(size: 11, weight: .medium)).tracking(1)
+                        .padding(.top, -8)
+                }
+                Spacer(minLength: 0)
+                day(entry.date).frame(width: side, height: side)
+            }
+            .padding(.leading, 20).padding(.trailing, 10)
+            .frame(width: geometry.size.width, height: geometry.size.height)
+        }
+        .widgetURL(WidgetSkySnapshot.link(for: entry.date,
+            hasPhoto: entry.snapshot.photos[WidgetSkySnapshot.key(entry.date)] != nil))
     }
     @ViewBuilder private func day(_ date: Date) -> some View {
         let data = entry.snapshot.photos[WidgetSkySnapshot.key(date)]
@@ -75,21 +126,29 @@ struct SkyWidgetView: View {
                     Image(uiImage: image).resizable().scaledToFill()
                 }
             } else {
-                if family == .systemSmall {
-                    Circle().fill(emptyColor).padding(18)
-                    Circle().strokeBorder(Color.gray.opacity(0.6), lineWidth: 1).padding(18)
-                    CircularPrompt().foregroundStyle(ink)
-                } else {
-                    Circle().fill(emptyColor)
-                }
-                if today && family != .systemSmall {
-                    Image(systemName: "plus").font(.system(size: family == .systemSmall ? 32 : 18, weight: .ultraLight))
-                        .foregroundStyle(ink)
+                Circle().fill(emptyColor)
+                if today {
+                    if family == .systemSmall {
+                        Image(systemName: "plus")
+                            .font(.system(size: 30, weight: .ultraLight))
+                            .overlay(alignment: .top) {
+                                Text("Record your sky")
+                                    .font(.system(size: 10, weight: .regular))
+                                    .foregroundStyle(ink.opacity(0.55))
+                                    .fixedSize()
+                                    .offset(y: 38)
+                            }
+                    } else {
+                        Image(systemName: "plus")
+                            .font(.system(size: theme == .poster ? 58 : 18, weight: .ultraLight))
+                    }
                 }
             }
         }
         .aspectRatio(1, contentMode: .fit).clipShape(Circle())
-        .overlay { if today && family != .systemSmall { Circle().strokeBorder(Color.gray.opacity(0.6), lineWidth: 1) } }
+        .overlay { if today && (family != .systemSmall || image == nil) {
+            Circle().strokeBorder(ink, lineWidth: 1)
+        } }
         if image != nil || today {
             Link(destination: WidgetSkySnapshot.link(for: date, hasPhoto: image != nil)) { circle }
                 .accessibilityLabel(image != nil ? "Open sky for \(date.formatted(date: .complete, time: .omitted))" : "Record today’s sky")
@@ -98,31 +157,45 @@ struct SkyWidgetView: View {
         }
     }
 }
-struct CircularPrompt: View {
-    private let letters = Array("RECORD YOUR SKY · RECORD YOUR SKY · ")
-    var body: some View {
-        GeometryReader { geometry in
-            let side = min(geometry.size.width, geometry.size.height)
-            ZStack {
-                ForEach(letters.indices, id: \.self) { index in
-                    let angle = Double(index) / Double(letters.count) * 360 - 90
-                    Text(String(letters[index]))
-                        .font(.system(size: side * 0.075, weight: .medium))
-                        .rotationEffect(.degrees(angle + 90))
-                        .position(x: side / 2 + cos(angle * .pi / 180) * side * 0.455,
-                                  y: side / 2 + sin(angle * .pi / 180) * side * 0.455)
-                }
-            }
-        }.accessibilityHidden(true)
-    }
-}
-@main struct AboveWidget: Widget {
+struct AboveWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "AboveSky", provider: SkyProvider()) { entry in SkyWidgetView(entry: entry) }
-            .configurationDisplayName("Your sky")
+            .configurationDisplayName("Classic · 1 week")
             .description("Today’s sky, or a little sky for every day of the week.")
             .supportedFamilies([.systemSmall, .systemMedium])
             .contentMarginsDisabled()
             .containerBackgroundRemovable(true)
+    }
+}
+
+struct AbovePosterWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "AbovePoster", provider: SkyProvider()) { entry in
+            SkyWidgetView(entry: entry, theme: .poster)
+        }
+        .configurationDisplayName("Poster")
+        .description("A bold date, in your journal’s palette.")
+        .supportedFamilies([.systemMedium])
+        .contentMarginsDisabled()
+        .containerBackgroundRemovable(true)
+    }
+}
+struct AboveTwoWeekWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "AboveTwoWeeks", provider: SkyProvider()) { entry in
+            SkyWidgetView(entry: entry, twoWeeks: true)
+        }
+        .configurationDisplayName("Classic · 2 weeks")
+        .description("Last week and this week, one sky at a time.")
+        .supportedFamilies([.systemMedium])
+        .contentMarginsDisabled()
+        .containerBackgroundRemovable(true)
+    }
+}
+@main struct AboveWidgetBundle: WidgetBundle {
+    var body: some Widget {
+        AboveWidget()
+        AboveTwoWeekWidget()
+        AbovePosterWidget()
     }
 }

@@ -37,7 +37,9 @@ struct WidgetSkySnapshot: Codable {
                 return [Double(r), Double(g), Double(b)]
             }
             try JSONEncoder().encode(Self(photos: photos, backgroundRGB: components(background), inkRGB: components(ink))).write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-            WidgetCenter.shared.reloadTimelines(ofKind: "AboveSky")
+            for kind in ["AboveSky", "AboveTwoWeeks", "AbovePoster"] {
+                WidgetCenter.shared.reloadTimelines(ofKind: kind)
+            }
         } catch { /* The journal remains saved even if widget sharing is unavailable. */ }
     }
     static func link(for date: Date, hasPhoto: Bool) -> URL {
