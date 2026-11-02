@@ -136,11 +136,14 @@ struct SkyEntry: Codable, Identifiable {
         SkyReminder.shared.refresh(entries: entries)
         publishWidget()
     }
-    func publishWidget() {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
+    func publishWidget(background: Color? = nil, ink: Color? = nil) {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let weekdayOffset = (calendar.component(.weekday, from: today) + 5) % 7
+        let cutoff = calendar.date(byAdding: .day, value: -weekdayOffset - 7, to: today)!
         WidgetSkySnapshot.publish(entries.filter { $0.date >= cutoff }.compactMap { entry in
             image(entry).map { (entry.date, $0) }
-        }, background: UIColor(paper), ink: UIColor(appInk))
+        }, background: UIColor(background ?? paper), ink: UIColor(ink ?? appInk))
     }
     func save(_ image: UIImage, on date: Date) {
         let id = key(date)
@@ -225,8 +228,13 @@ struct SkyEntry: Codable, Identifiable {
     @AppStorage("backgroundPalette") private var backgroundChoice = "Paper"
     @AppStorage("inkPalette") private var inkChoice = "Black"
     @StateObject private var store = SkyStore()
+    init() {
+        UserDefaults.standard.register(defaults: ["skyReminderEnabled": true])
+    }
     var body: some Scene {
         WindowGroup { AboveRootView().background((backgroundPalette.first { $0.0 == backgroundChoice }?.1 ?? paper).ignoresSafeArea()).tint(inkPalette.first { $0.0 == inkChoice }?.1 ?? appInk).environmentObject(store).preferredColorScheme(.light)
+            .onChange(of: backgroundChoice) { _, _ in store.publishWidget() }
+            .onChange(of: inkChoice) { _, _ in store.publishWidget() }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     SkyReminder.shared.refresh(entries: store.entries)
@@ -238,12 +246,35 @@ struct SkyEntry: Codable, Identifiable {
 }
 
 struct AboveRootView: View {
+    @EnvironmentObject private var store: SkyStore
     @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
+    @AppStorage("hasRequestedSkyReminder") private var hasRequestedReminder = false
+    @AppStorage("skyReminderEnabled") private var reminderEnabled = true
     var body: some View {
+        Group {
         if hasSeenWelcome {
             CalendarView()
         } else {
             WelcomeView { withAnimation(.easeInOut(duration: 0.3)) { hasSeenWelcome = true } }
+        }
+        }
+        .task {
+            guard !hasRequestedReminder else { return }
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+            if reminderEnabled && settings.authorizationStatus == .notDetermined {
+                do {
+                    reminderEnabled = try await center.requestAuthorization(options: [.alert, .sound])
+                    hasRequestedReminder = true
+                } catch {
+                    // Leave the first-launch request retryable after a transient failure.
+                    return
+                }
+            } else {
+                if settings.authorizationStatus == .denied { reminderEnabled = false }
+                hasRequestedReminder = true
+            }
+            SkyReminder.shared.refresh(entries: store.entries)
         }
     }
 }
@@ -600,6 +631,7 @@ struct CalendarView: View {
                 EntryView(entry: entry).environmentObject(store)
                     .toolbar(.hidden, for: .navigationBar)
             }
+            .background(paper.ignoresSafeArea())
         }
         .alert("Something went wrong", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("OK") { store.error = nil } } message: { Text(store.error ?? "") }
     }
@@ -924,7 +956,9 @@ struct PaletteEditor: View {
                 Button {
                     backgroundChoice = draftBackground
                     inkChoice = draftInk
-                    store.publishWidget()
+                    store.publishWidget(
+                        background: backgroundPalette.first { $0.0 == draftBackground }?.1 ?? paper,
+                        ink: inkPalette.first { $0.0 == draftInk }?.1 ?? appInk)
                 } label: {
                     Text("Save").font(.system(size: 13, weight: .medium))
                         .frame(height: 32)
@@ -987,7 +1021,7 @@ struct StorageSettingsView: View {
     @Environment(\.openURL) private var openURL
     @AppStorage("photosCopyPreference") private var photosCopyPreference = "unasked"
     @EnvironmentObject private var store: SkyStore
-    @AppStorage("skyReminderEnabled") private var reminderEnabled = false
+    @AppStorage("skyReminderEnabled") private var reminderEnabled = true
     @AppStorage("skyReminderHour") private var reminderHour = 18
     @AppStorage("skyReminderMinute") private var reminderMinute = 0
     @State private var requestingReminder = false
@@ -1181,7 +1215,8 @@ struct EntryView: View {
             }
             }
         }
-        .background(paper).foregroundStyle(appInk)
+        .background { paper.ignoresSafeArea(.all) }
+        .foregroundStyle(appInk)
         .onAppear {
             draft = savedNote
             poster = store.image(entry)
