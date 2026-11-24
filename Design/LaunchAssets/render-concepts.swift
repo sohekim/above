@@ -1,7 +1,7 @@
 import AppKit
 let root=URL(fileURLWithPath:CommandLine.arguments[1])
-let out=root.appendingPathComponent("outputs/LookUp-launch-assets")
-let skies=["blue","gray","pink"].map { NSImage(contentsOf:root.appendingPathComponent("outputs/Above/Above/DemoSkies/\($0).png"))! }
+let out=root.appendingPathComponent("Design/LaunchAssets")
+let skies=["blue","gray","pink"].map { NSImage(contentsOf:root.appendingPathComponent("Above/DemoSkies/\($0).png"))! }
 func canvas(_ w:Int,_ h:Int,_ draw:(CGFloat,CGFloat)->Void)->NSImage {
  let image=NSImage(size:NSSize(width:w,height:h));image.lockFocus()
  NSColor(calibratedWhite:0.98,alpha:1).setFill();NSBezierPath(rect:NSRect(x:0,y:0,width:w,height:h)).fill()
@@ -9,7 +9,11 @@ func canvas(_ w:Int,_ h:Int,_ draw:(CGFloat,CGFloat)->Void)->NSImage {
 }
 
 func save(_ img:NSImage,_ name:String) {
- let rep=NSBitmapImageRep(data:img.tiffRepresentation!)!
+ // Render at exact point size so Retina hosts don't write 2x files.
+ let rep=NSBitmapImageRep(bitmapDataPlanes:nil,pixelsWide:Int(img.size.width),pixelsHigh:Int(img.size.height),bitsPerSample:8,samplesPerPixel:4,hasAlpha:true,isPlanar:false,colorSpaceName:.deviceRGB,bytesPerRow:0,bitsPerPixel:0)!
+ rep.size=img.size
+ NSGraphicsContext.saveGraphicsState();NSGraphicsContext.current=NSGraphicsContext(bitmapImageRep:rep)
+ img.draw(in:NSRect(origin:.zero,size:img.size));NSGraphicsContext.restoreGraphicsState()
  try! rep.representation(using:.png,properties:[:])!.write(to:out.appendingPathComponent(name))
 }
 func text(_ s:String,_ x:CGFloat,_ y:CGFloat,_ w:CGFloat,_ size:CGFloat,_ weight:NSFont.Weight = .regular,_ color:NSColor = .black) {
@@ -22,13 +26,11 @@ func circle(_ image:NSImage,_ x:CGFloat,_ y:CGFloat,_ side:CGFloat){
  image.draw(in:NSRect(x:x,y:y,width:side,height:side),from:NSRect(x:(source.width-crop)/2,y:(source.height-crop)/2,width:crop,height:crop),operation:.sourceOver,fraction:1)
  NSGraphicsContext.restoreGraphicsState()
 }
-let icon=canvas(1024,1024){_,_ in circle(skies[0],132,132,760) }
-save(icon,"LookUp-icon-1024.png")
 let titles=["A little sky.\nEvery day.","Ten seconds.\nJust look up.","Keep a moment.\nLeave a thought."]
 var posters:[NSImage]=[]
 for i in 0..<3 {
  let img=canvas(1320,2868){w,h in
-  text("LookUp",90,h-220,600,42,.semibold)
+  text("Above",90,h-220,600,42,.semibold)
   text(String(format:"0%d /",i+1),1100,h-205,160,28,.medium)
   text(titles[i],90,h-700,w-180,108,.bold)
   if i==0 {
@@ -57,6 +59,6 @@ for i in 0..<3 {
 }
 let sheet=canvas(1200,950){_,_ in
  for (i,img) in posters.enumerated(){img.draw(in:NSRect(x:CGFloat(i)*400+12,y:60,width:376,height:817))}
- text("LookUp / promotional concepts — actual app screenshots to be inserted before submission",24,10,1150,18,.medium)
+ text("Above / promotional concepts — actual app screenshots to be inserted before submission",24,10,1150,18,.medium)
 }
 save(sheet,"overview.png")
