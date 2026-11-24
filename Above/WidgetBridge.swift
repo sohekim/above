@@ -11,7 +11,7 @@ struct WidgetSkySnapshot: Codable {
         return "\(c.year!)-\(c.month!)-\(c.day!)"
     }
     static var url: URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.above.skyjournal")?
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.app82.above.skyjournal")?
             .appendingPathComponent("widget-skies.json")
     }
     static func load() -> Self {
